@@ -3,19 +3,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import mapboxgl, { Map as MapboxMap, Marker } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { Event } from "@/lib/events";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
-
-// Event type with status
-export interface Event {
-  id: number;
-  lat: number;
-  lng: number;
-  emoji: string;
-  title: string;
-  image: string;
-  status: "upcoming" | "ongoing" | "past";
-}
 
 // Color map for statuses
 const statusColors: Record<Event["status"], string> = {
@@ -31,6 +21,7 @@ export interface MapRef {
 interface RealMapProps {
   onSelect: (event: Event) => void;
   filteredEvents: Event[];
+  selectedCoords?: { lat: number; lng: number } | null;
 }
 
 const RealMap = forwardRef<MapRef, RealMapProps>(
@@ -57,7 +48,7 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11", // clean, minimal style
-        center: [3.3792, 6.5244],
+        center: [7.0354, 4.8156], // Port Harcourt as default
         zoom: 12,
       });
 

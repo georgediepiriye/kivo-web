@@ -6,10 +6,10 @@ export interface Event {
   title: string;
   image: string;
   status: "upcoming" | "ongoing" | "past";
+  description: string;
 }
 
 export const DEFAULT_EVENTS: Event[] = [
-  // GRA Port Harcourt
   {
     id: 1,
     lat: 4.819,
@@ -18,6 +18,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Afrobeat Concert GRA",
     image: "https://images.unsplash.com/photo-1544771803-30a4e51a5ef6",
     status: "upcoming",
+    description:
+      "Join us for a night of electrifying Afrobeat music at GRA Port Harcourt! Dance, sing along, and enjoy local snacks.",
   },
   {
     id: 2,
@@ -27,6 +29,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "5-a-side Football GRA",
     image: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d",
     status: "ongoing",
+    description:
+      "Grab your friends for a competitive 5-a-side football match in GRA Port Harcourt. Fun and exercise guaranteed!",
   },
   {
     id: 3,
@@ -36,6 +40,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Neighborhood Drinks Night",
     image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf",
     status: "past",
+    description:
+      "Relax with neighbors over local drinks. Music, laughter, and good vibes in a cozy environment.",
   },
   {
     id: 4,
@@ -45,6 +51,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "House Party Vibes",
     image: "https://images.unsplash.com/photo-1590080870058-b7d3c8c1ff70",
     status: "upcoming",
+    description:
+      "A chill house party with music, snacks, and great company. Bring your friends and dance the night away!",
   },
   {
     id: 5,
@@ -54,9 +62,9 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Gaming Meetup GRA",
     image: "https://images.unsplash.com/photo-1603791440384-56cd371ee9a7",
     status: "ongoing",
+    description:
+      "Gamers unite! Compete in FIFA, Call of Duty, or just hang out and meet fellow gamers in the GRA area.",
   },
-
-  // Ada George
   {
     id: 6,
     lat: 4.876,
@@ -65,6 +73,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Community Basketball Game Ada George",
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b",
     status: "upcoming",
+    description:
+      "Join local teams for a friendly basketball match in Ada George. Bring your sneakers and energy!",
   },
   {
     id: 7,
@@ -74,6 +84,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Live Band Night Ada George",
     image: "https://images.unsplash.com/photo-1524230572916-58a7b80b4f37",
     status: "ongoing",
+    description:
+      "Experience live music from talented local bands. Food and drinks available for all attendees.",
   },
   {
     id: 8,
@@ -83,6 +95,8 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "Beach Volleyball Meetup",
     image: "https://images.unsplash.com/photo-1505842465776-3e3e8d7b8e0f",
     status: "upcoming",
+    description:
+      "Sun, sand, and volleyball! Play or cheer for teams at this fun outdoor meetup in Bonny area.",
   },
   {
     id: 9,
@@ -92,198 +106,238 @@ export const DEFAULT_EVENTS: Event[] = [
     title: "TikTok Dance Challenge",
     image: "https://images.unsplash.com/photo-1607746882042-944635dfe10e",
     status: "upcoming",
+    description:
+      "Show off your best moves in this TikTok Dance Challenge. Record, upload, and challenge friends to match!",
   },
-
-  // Odili Road
   {
     id: 10,
     lat: 4.84,
     lng: 7.055,
     emoji: "🎨",
-    title: "Street Art Walk Odili",
+    title: "Street Art Walk Odili Road",
     image: "https://images.unsplash.com/photo-1506015391300-4802dc78b78e",
     status: "upcoming",
+    description:
+      "Explore Odili Road's vibrant street art. Discover local artists and snap Instagram-worthy photos.",
   },
   {
     id: 11,
-    lat: 4.842,
-    lng: 7.05,
-    emoji: "🎤",
-    title: "Poetry Slam Odili Road",
-    image: "https://images.unsplash.com/photo-1493149738420-3e4e74d3d19b",
-    status: "ongoing",
+    lat: 4.845,
+    lng: 7.045,
+    emoji: "🎶",
+    title: "Jazz Night Bonny",
+    image: "https://images.unsplash.com/photo-1518972559570-7cc1309ea09b",
+    status: "past",
+    description:
+      "An intimate evening of live jazz music in Bonny. Enjoy cocktails and smooth tunes.",
   },
   {
     id: 12,
-    lat: 4.845,
-    lng: 7.048,
-    emoji: "🖥️",
-    title: "Local Coding Workshop",
-    image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
+    lat: 4.86,
+    lng: 7.05,
+    emoji: "🎤",
+    title: "Open Mic Night Riverside",
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
     status: "upcoming",
+    description:
+      "Showcase your talent in music, poetry, or comedy. Everyone is welcome to perform or cheer.",
   },
   {
     id: 13,
-    lat: 4.841,
-    lng: 7.052,
-    emoji: "🛹",
-    title: "Skateboarding Meetup Odili",
-    image: "https://images.unsplash.com/photo-1549924231-f129b911e442",
+    lat: 4.855,
+    lng: 7.04,
+    emoji: "🏃",
+    title: "Sunrise Fun Run",
+    image: "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
     status: "ongoing",
+    description:
+      "Start your day with a refreshing community run along scenic river paths.",
   },
-
-  // Other Rivers State Events
   {
     id: 14,
-    lat: 4.8156,
-    lng: 7.0498,
-    emoji: "🎤",
-    title: "Afrobeat Concert PH",
-    image: "https://images.unsplash.com/photo-1544771803-30a4e51a5ef6",
-    status: "upcoming",
+    lat: 4.85,
+    lng: 7.035,
+    emoji: "🍺",
+    title: "Local Brewery Tasting",
+    image: "https://images.unsplash.com/photo-1510936111840-dc87aebf7b6c",
+    status: "past",
+    description:
+      "Taste authentic local brews and learn about Rivers State brewing culture.",
   },
   {
     id: 15,
-    lat: 4.839,
-    lng: 7.055,
-    emoji: "🏃",
-    title: "Morning Fun Run",
-    image: "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
-    status: "ongoing",
+    lat: 4.848,
+    lng: 7.042,
+    emoji: "🎸",
+    title: "Indie Band Showcase",
+    image: "https://images.unsplash.com/photo-1524230572916-58a7b80b4f37",
+    status: "upcoming",
+    description:
+      "Discover the best indie bands performing live. Great vibes and community energy.",
   },
   {
     id: 16,
-    lat: 4.78,
-    lng: 7.045,
-    emoji: "🍻",
-    title: "Chill & Drinks Festival",
-    image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf",
-    status: "past",
-  },
-  {
-    id: 17,
-    lat: 4.905,
-    lng: 7.035,
-    emoji: "🎨",
-    title: "Art Exhibition Bori",
-    image: "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d",
-    status: "upcoming",
-  },
-  {
-    id: 18,
-    lat: 4.882,
-    lng: 7.015,
-    emoji: "🎶",
-    title: "Open Mic Night Oyigbo",
-    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
-    status: "upcoming",
-  },
-  {
-    id: 19,
-    lat: 4.875,
-    lng: 7.05,
-    emoji: "🎬",
-    title: "Outdoor Movie Screening Eleme",
-    image: "https://images.unsplash.com/photo-1493238792000-8113da705763",
-    status: "ongoing",
-  },
-  {
-    id: 20,
-    lat: 4.81,
-    lng: 7.065,
-    emoji: "🎤",
-    title: "Hip-Hop Night Khana",
-    image: "https://images.unsplash.com/photo-1508923567004-3a6b8004f3d5",
-    status: "past",
-  },
-  {
-    id: 21,
     lat: 4.845,
-    lng: 7.04,
-    emoji: "🍴",
-    title: "Food Festival Bonny",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-    status: "upcoming",
-  },
-  {
-    id: 22,
-    lat: 4.86,
-    lng: 7.02,
-    emoji: "🏀",
-    title: "Community Basketball Game",
-    image: "https://images.unsplash.com/photo-1517649763962-0c623066013b",
-    status: "ongoing",
-  },
-  {
-    id: 23,
-    lat: 4.87,
-    lng: 7.03,
-    emoji: "🎤",
-    title: "Choir Performance",
-    image: "https://images.unsplash.com/photo-1523906630133-f6934a94a9b0",
-    status: "past",
-  },
-  {
-    id: 24,
-    lat: 4.82,
-    lng: 7.025,
-    emoji: "🎪",
-    title: "Street Carnival",
-    image: "https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d",
-    status: "upcoming",
-  },
-  {
-    id: 25,
-    lat: 4.895,
-    lng: 7.06,
-    emoji: "🎤",
-    title: "Gospel Night Omuma",
-    image: "https://images.unsplash.com/photo-1504502354546-76c3e7d3c55d",
-    status: "upcoming",
-  },
-  {
-    id: 26,
-    lat: 4.88,
-    lng: 7.045,
-    emoji: "🏃",
-    title: "Evening Yoga Session",
-    image: "https://images.unsplash.com/photo-1526401485004-6f4245e094c5",
-    status: "ongoing",
-  },
-  {
-    id: 27,
-    lat: 4.87,
-    lng: 7.055,
-    emoji: "🍺",
-    title: "Local Beer Tasting",
-    image: "https://images.unsplash.com/photo-1510936111840-dc87aebf7b6c",
-    status: "past",
-  },
-  {
-    id: 28,
-    lat: 4.86,
-    lng: 7.05,
-    emoji: "🎸",
-    title: "Live Band Riverside",
-    image: "https://images.unsplash.com/photo-1524230572916-58a7b80b4f37",
-    status: "upcoming",
-  },
-  {
-    id: 29,
-    lat: 4.855,
-    lng: 7.045,
+    lng: 7.038,
     emoji: "🛍️",
     title: "Weekend Market Fair",
     image: "https://images.unsplash.com/photo-1505842465776-3e3e8d7b8e0f",
     status: "upcoming",
+    description:
+      "Shop local! Handmade crafts, food, and music for a lively weekend in Port Harcourt.",
   },
   {
-    id: 30,
-    lat: 4.85,
-    lng: 7.04,
+    id: 17,
+    lat: 4.84,
+    lng: 7.03,
     emoji: "🎨",
     title: "Art & Crafts Expo",
     image: "https://images.unsplash.com/photo-1495435229349-e86db7bfa013",
     status: "ongoing",
+    description:
+      "See and buy unique arts and crafts from talented Rivers State creators.",
+  },
+  {
+    id: 18,
+    lat: 4.835,
+    lng: 7.025,
+    emoji: "🎶",
+    title: "Acoustic Night GRA",
+    image: "https://images.unsplash.com/photo-1518972559570-7cc1309ea09b",
+    status: "past",
+    description:
+      "Enjoy live acoustic performances in a cozy, intimate setting in GRA Port Harcourt.",
+  },
+  {
+    id: 19,
+    lat: 4.83,
+    lng: 7.02,
+    emoji: "🎤",
+    title: "Comedy Night Riverside",
+    image: "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70",
+    status: "upcoming",
+    description:
+      "Laugh out loud at this comedy night featuring local and national comedians.",
+  },
+  {
+    id: 20,
+    lat: 4.825,
+    lng: 7.015,
+    emoji: "🍲",
+    title: "Street Food Crawl",
+    image: "https://images.unsplash.com/photo-1551782450-a2132b4ba21d",
+    status: "ongoing",
+    description:
+      "Taste the best local street food while walking around Port Harcourt’s bustling streets.",
+  },
+  {
+    id: 21,
+    lat: 4.82,
+    lng: 7.01,
+    emoji: "🏀",
+    title: "Local Soccer Match",
+    image: "https://images.unsplash.com/photo-1517649763962-0c623066013b",
+    status: "past",
+    description:
+      "Cheer for local amateur soccer teams competing in an exciting match.",
+  },
+  {
+    id: 22,
+    lat: 4.815,
+    lng: 7.005,
+    emoji: "🎤",
+    title: "Karaoke Night",
+    image: "https://images.unsplash.com/photo-1520085179755-2baf046c4a6b",
+    status: "upcoming",
+    description:
+      "Sing your heart out with friends and show off your vocal skills in this fun karaoke night.",
+  },
+  {
+    id: 23,
+    lat: 4.81,
+    lng: 7.0,
+    emoji: "🏃",
+    title: "Charity Fun Run",
+    image: "https://images.unsplash.com/photo-1526404188837-52aa8314b7cf",
+    status: "upcoming",
+    description:
+      "Run for a cause! Participate in a charity fun run supporting local community projects.",
+  },
+  {
+    id: 24,
+    lat: 4.805,
+    lng: 6.995,
+    emoji: "🎨",
+    title: "Gallery Opening PH",
+    image: "https://images.unsplash.com/photo-1491333078588-55b6733c7de6",
+    status: "ongoing",
+    description:
+      "Be the first to explore a new art gallery featuring contemporary Nigerian artists.",
+  },
+  {
+    id: 25,
+    lat: 4.8,
+    lng: 6.99,
+    emoji: "🎬",
+    title: "Film Screening PH",
+    image: "https://images.unsplash.com/photo-1496116218416-1d5c15d1d66c",
+    status: "past",
+    description:
+      "Watch independent films by Nigerian filmmakers and discuss them with creators.",
+  },
+  {
+    id: 26,
+    lat: 4.795,
+    lng: 6.985,
+    emoji: "🎶",
+    title: "Afropop Dance Party",
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
+    status: "upcoming",
+    description:
+      "Dance to the hottest Afropop tracks with fellow music lovers in a lively party environment.",
+  },
+  {
+    id: 27,
+    lat: 4.79,
+    lng: 6.98,
+    emoji: "🍹",
+    title: "Cocktail Night PH",
+    image: "https://images.unsplash.com/photo-1526040652367-28f1e35f83a1",
+    status: "ongoing",
+    description:
+      "Sip on creative cocktails while socializing and enjoying live music in Port Harcourt.",
+  },
+  {
+    id: 28,
+    lat: 4.785,
+    lng: 6.975,
+    emoji: "🎤",
+    title: "Poetry Slam",
+    image: "https://images.unsplash.com/photo-1493149738420-3e4e74d3d19b",
+    status: "past",
+    description:
+      "Listen to powerful spoken word performances by Rivers State poets.",
+  },
+  {
+    id: 29,
+    lat: 4.78,
+    lng: 6.97,
+    emoji: "🎨",
+    title: "Street Art Walk",
+    image: "https://images.unsplash.com/photo-1506015391300-4802dc78b78e",
+    status: "upcoming",
+    description:
+      "Take a guided walk exploring amazing street art and murals across Port Harcourt.",
+  },
+  {
+    id: 30,
+    lat: 4.775,
+    lng: 6.965,
+    emoji: "🏃",
+    title: "Sunset Yoga Session",
+    image: "https://images.unsplash.com/photo-1526404188837-52aa8314b7cf",
+    status: "ongoing",
+    description:
+      "Relax and rejuvenate with a calming sunset yoga session along the river.",
   },
 ];

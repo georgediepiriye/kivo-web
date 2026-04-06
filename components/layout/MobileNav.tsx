@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home, Compass, PlusCircle, Layers, Cpu } from "lucide-react"; // install lucide-react: npm i lucide-react
 
 export default function MobileNav() {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Home", href: "/", icon: "home" },
-    { name: "Discover", href: "/map", icon: "explore" },
-    { name: "Create", href: "/create", icon: "add_circle" },
-    { name: "Feed", href: "/feed", icon: "layers" },
-    { name: "AI", href: "/ai", icon: "smart_toy" },
+    { name: "Home", href: "/", icon: Home },
+    { name: "Discover", href: "/map", icon: Compass },
+    { name: "Create", href: "/create", icon: PlusCircle },
+    { name: "Feed", href: "/feed", icon: Layers },
+    { name: "AI", href: "/ai", icon: Cpu },
   ];
 
   return (
@@ -21,6 +22,7 @@ export default function MobileNav() {
     >
       {navItems.map((item) => {
         const isActive = pathname === item.href;
+        const IconComponent = item.icon;
 
         return (
           <Link
@@ -32,14 +34,10 @@ export default function MobileNav() {
                 : "text-slate-500"
             }`}
           >
-            <span
-              className="material-symbols-outlined mb-1"
-              style={{
-                fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >
-              {item.icon}
-            </span>
+            <IconComponent
+              size={24}
+              className={`mb-1 ${isActive ? "fill-current" : ""}`}
+            />
             <span className="text-[10px]">{item.name}</span>
           </Link>
         );

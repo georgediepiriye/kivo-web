@@ -32,10 +32,8 @@ export default function MapPage() {
       const matchesSearch = event.title
         .toLowerCase()
         .includes(search.toLowerCase());
-
       const matchesFilter =
         activeFilter === "all" ? true : event.status === activeFilter;
-
       return matchesSearch && matchesFilter;
     });
   }, [search, activeFilter]);
@@ -193,31 +191,63 @@ export default function MapPage() {
           </button>
         )}
 
-        {/* EVENT SHEET WITH CLOSE BUTTON */}
+        {/* EVENT MODAL */}
         {selected && (
-          <motion.div
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 300 }}
-            initial={{ y: 300 }}
-            animate={{ y: 0 }}
-            className="absolute bottom-[90px] left-0 w-full bg-white rounded-t-3xl shadow-2xl z-[60]"
-          >
-            <div className="p-5 relative">
-              {/* X button at top-right */}
-              <button
-                onClick={() => setSelected(null)}
-                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 active:scale-90 transition text-lg"
-              >
-                ✕
-              </button>
+          <>
+            {/* MOBILE BOTTOM SHEET */}
+            <motion.div
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 300 }}
+              initial={{ y: 300 }}
+              animate={{ y: 0 }}
+              className="md:hidden absolute bottom-[90px] left-0 w-full bg-white rounded-t-3xl shadow-2xl z-[60]"
+            >
+              <div className="p-5 relative">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 active:scale-90 transition text-lg"
+                >
+                  ✕
+                </button>
+                <h2 className="font-bold">{selected.title}</h2>
+                <p className="mt-2 text-gray-700">{selected.description}</p>
+                <img src={selected.image} className="mt-3 rounded-xl" />
+                <button className="mt-4 w-full py-3 bg-[#715800] text-white rounded-full">
+                  Join Event
+                </button>
+              </div>
+            </motion.div>
 
-              <h2 className="font-bold">{selected.title}</h2>
-              <img src={selected.image} className="mt-3 rounded-xl" />
-              <button className="mt-4 w-full py-3 bg-[#715800] text-white rounded-full">
-                Join Event
-              </button>
-            </div>
-          </motion.div>
+            {/* DESKTOP MODAL */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="hidden md:flex fixed top-0 left-0 w-full h-full items-center justify-center z-[60]"
+            >
+              <div className="relative w-[80%] max-w-md bg-white rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+                {/* SCROLLABLE CONTENT */}
+                <div className="overflow-y-auto p-6 flex-1">
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 active:scale-90 transition text-lg"
+                  >
+                    ✕
+                  </button>
+                  <h2 className="font-bold">{selected.title}</h2>
+                  <p className="mt-2 text-gray-700">{selected.description}</p>
+                  <img src={selected.image} className="mt-3 rounded-xl" />
+                </div>
+
+                {/* JOIN BUTTON ALWAYS VISIBLE */}
+                <div className="p-6 border-t flex-shrink-0">
+                  <button className="w-full py-3 bg-[#715800] text-white rounded-full">
+                    Join Event
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </div>
 
