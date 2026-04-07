@@ -10,7 +10,7 @@ export default function HeroAndAssistant() {
         <div className="flex-1 space-y-6 md:space-y-8">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-black rounded-full text-xs font-bold tracking-widest uppercase">
             <span className="material-symbols-outlined text-sm">bolt</span>
-            Live across major cities
+            Live in port harcourt
           </div>
 
           <h1 className="text-4xl md:text-7xl font-black tracking-tighter leading-[1.05] text-on-surface">
@@ -19,9 +19,10 @@ export default function HeroAndAssistant() {
           </h1>
 
           <p className="text-base md:text-lg text-gray-600 max-w-xl leading-relaxed">
-            Discover events, gatherings, and experiences in real time. From
-            rooftop evenings in Lagos to garden events in Abuja and nightlife in
-            Port Harcourt.
+            Discover local events and activities in{" "}
+            <strong>Port Harcourt</strong>. Meet people in real life, and join
+            or host meetups around you. Explore the map, join in minutes, or
+            create your own event.
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">

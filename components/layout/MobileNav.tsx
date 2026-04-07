@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Compass, PlusCircle, Layers, Cpu } from "lucide-react"; // install lucide-react: npm i lucide-react
+import { Home, Compass, PlusCircle, Layers, Bot } from "lucide-react"; // install lucide-react: npm i lucide-react
 
 export default function MobileNav() {
   const pathname = usePathname();
@@ -12,7 +12,7 @@ export default function MobileNav() {
     { name: "Discover", href: "/map", icon: Compass },
     { name: "Create", href: "/create", icon: PlusCircle },
     { name: "Feed", href: "/feed", icon: Layers },
-    { name: "AI", href: "/ai", icon: Cpu },
+    { name: "AI", href: "/ai", icon: Bot },
   ];
 
   return (
