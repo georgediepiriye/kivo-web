@@ -15,7 +15,7 @@ export default function HeroAndAssistant() {
 
           <h1 className="text-4xl md:text-7xl font-black tracking-tighter leading-[1.05] text-on-surface">
             See what’s happening{" "}
-            <span className="text-primary italic">nearby</span>.
+            <span className="text-primary italic">near you</span>.
           </h1>
 
           <p className="text-base md:text-lg text-gray-600 max-w-xl leading-relaxed">
@@ -58,7 +58,7 @@ export default function HeroAndAssistant() {
 
               <div>
                 <p className="font-bold text-sm">Sunday Brunch</p>
-                <p className="text-xs text-gray-500">Victoria Island, Lagos</p>
+                <p className="text-xs text-gray-500">Old GRA, Port Harcourt</p>
               </div>
             </div>
 

@@ -1,33 +1,39 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import mapboxgl, { Map as MapboxMap, Marker } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Event } from "@/lib/events";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
-// Color map for statuses
 const statusColors: Record<Event["status"], string> = {
-  upcoming: "#10b981", // green
-  ongoing: "#facc15", // yellow
-  past: "#9ca3af", // gray
+  upcoming: "#10b981",
+  ongoing: "#facc15",
+  past: "#9ca3af",
 };
 
 export interface MapRef {
   flyToUser: () => void;
+  flyTo: (coords: { lat: number; lng: number }) => void;
 }
 
 interface RealMapProps {
   onSelect: (event: Event) => void;
   filteredEvents: Event[];
-  selectedCoords?: { lat: number; lng: number } | null;
 }
 
 const RealMap = forwardRef<MapRef, RealMapProps>(
   ({ onSelect, filteredEvents }, ref) => {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapboxMap | null>(null);
+    const [isMapReady, setIsMapReady] = useState(false);
     const userMarkerRef = useRef<Marker | null>(null);
     const eventMarkersRef = useRef<Marker[]>([]);
 
@@ -35,89 +41,87 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       flyToUser: () => {
         if (mapRef.current && userMarkerRef.current) {
           const lngLat = userMarkerRef.current.getLngLat();
-          mapRef.current.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 13 });
+          mapRef.current.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 14 });
+        }
+      },
+      flyTo: (coords: { lat: number; lng: number }) => {
+        if (mapRef.current) {
+          mapRef.current.flyTo({
+            center: [coords.lng, coords.lat],
+            zoom: 15,
+            speed: 1.5,
+          });
         }
       },
     }));
 
     // Initialize map
     useEffect(() => {
-      if (!mapContainer.current) return;
-      if (mapRef.current) return;
+      if (!mapContainer.current || mapRef.current) return;
 
       const map = new mapboxgl.Map({
         container: mapContainer.current,
-        style: "mapbox://styles/mapbox/light-v11", // clean, minimal style
-        center: [7.0354, 4.8156], // Port Harcourt as default
+        style: "mapbox://styles/mapbox/light-v11",
+        center: [7.0354, 4.8156],
         zoom: 12,
       });
 
-      mapRef.current = map;
-
-      // Force proper render after navigation
-      setTimeout(() => map.resize(), 500);
-      requestAnimationFrame(() => map.resize());
-
-      // Hide default POIs
       map.on("load", () => {
-        const layers = map.getStyle().layers;
-        if (!layers) return;
-        layers.forEach((layer) => {
-          if (layer.type === "symbol" && layer.id.includes("poi")) {
-            map.setLayoutProperty(layer.id, "visibility", "none");
-          }
-        });
+        mapRef.current = map;
+        setIsMapReady(true);
+
+        // Check for geolocation after map is loaded
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              // Safety check: ensure map wasn't removed while waiting for GPS
+              if (!mapRef.current) return;
+
+              const { latitude, longitude } = position.coords;
+              const userEl = document.createElement("div");
+              userEl.className =
+                "w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg";
+
+              // This was where your error was:
+              // We now use mapRef.current specifically to be safe
+              userMarkerRef.current = new mapboxgl.Marker(userEl)
+                .setLngLat([longitude, latitude])
+                .addTo(mapRef.current);
+            },
+            () => {
+              console.log("User denied location access");
+            },
+          );
+        }
       });
 
-      // User location
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          map.flyTo({ center: [longitude, latitude], zoom: 13 });
-
-          const userEl = document.createElement("div");
-          userEl.style.width = "16px";
-          userEl.style.height = "16px";
-          userEl.style.backgroundColor = "#3b82f6";
-          userEl.style.borderRadius = "50%";
-          userEl.style.border = "2px solid white";
-
-          userMarkerRef.current = new mapboxgl.Marker(userEl)
-            .setLngLat([longitude, latitude])
-            .addTo(map);
-        },
-        () => {},
-      );
+      return () => {
+        map.remove();
+        mapRef.current = null;
+      };
     }, []);
 
-    // Update event markers whenever filteredEvents changes
+    // Handle Event Markers
     useEffect(() => {
-      if (!mapRef.current) return;
+      if (!isMapReady || !mapRef.current) return;
 
-      // Remove old markers
       eventMarkersRef.current.forEach((m) => m.remove());
       eventMarkersRef.current = [];
 
-      // Add new markers
       filteredEvents.forEach((event) => {
         const el = document.createElement("div");
-        el.innerText = event.emoji;
-        el.style.fontSize = "32px";
-        el.style.textAlign = "center";
-        el.style.width = "40px";
-        el.style.height = "40px";
-        el.style.lineHeight = "40px";
-        el.style.background = statusColors[event.status];
-        el.style.borderRadius = "50%";
-        el.style.boxShadow = "0 0 4px rgba(0,0,0,0.4)";
-        el.style.cursor = "pointer";
+        el.className = "cursor-pointer transition-transform hover:scale-110";
+        el.innerHTML = `
+          <div style="background: ${statusColors[event.status]}; 
+               border-radius: 50%; width: 40px; height: 40px; 
+               display: flex; align-items: center; justify-content: center; 
+               box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 24px;">
+            ${event.emoji}
+          </div>
+        `;
 
-        el.addEventListener("click", () => {
-          mapRef.current?.flyTo({
-            center: [event.lng, event.lat],
-            zoom: 14,
-            speed: 1.2,
-          });
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
           onSelect(event);
         });
 
@@ -127,9 +131,9 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
         eventMarkersRef.current.push(marker);
       });
-    }, [filteredEvents, onSelect]);
+    }, [filteredEvents, onSelect, isMapReady]);
 
-    return <div ref={mapContainer} className="w-full h-[100dvh]" />;
+    return <div ref={mapContainer} className="w-full h-full" />;
   },
 );
 
