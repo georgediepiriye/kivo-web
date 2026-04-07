@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function HeroAndAssistant() {
   return (
@@ -26,9 +27,11 @@ export default function HeroAndAssistant() {
           </p>
 
           <div className="flex flex-wrap gap-4 pt-4">
-            <button className="px-6 md:px-8 py-3 md:py-4 bg-primary text-white font-bold rounded-full text-lg hover:scale-105 transition">
-              Get started
-            </button>
+            <Link href="/map">
+              <button className="px-6 md:px-8 py-3 md:py-4 bg-primary text-white font-bold rounded-full text-lg hover:scale-105 transition">
+                Get started
+              </button>
+            </Link>
 
             <button className="px-6 md:px-8 py-3 md:py-4 bg-gray-200 text-black font-bold rounded-full text-lg flex items-center gap-2 hover:bg-gray-300 transition">
               <span className="material-symbols-outlined">play_circle</span>

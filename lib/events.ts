@@ -16,7 +16,8 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.038,
     emoji: "🎤",
     title: "Afrobeat Concert GRA",
-    image: "https://images.unsplash.com/photo-1544771803-30a4e51a5ef6",
+    image:
+      "https://images.unsplash.com/photo-1731662784037-9b2f21819caa?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     status: "upcoming",
     description:
       "Join us for a night of electrifying Afrobeat music at GRA Port Harcourt! Dance, sing along, and enjoy local snacks.",

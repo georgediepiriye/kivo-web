@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
-import Footer from "@/components/layout/Footer";
 import RealMap, { MapRef } from "@/components/map/RealMap";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow"; // Added Onboarding
 import { DEFAULT_EVENTS, Event } from "@/lib/events";
 
 type FilterType = "all" | "upcoming" | "ongoing" | "past";
@@ -35,7 +35,7 @@ export default function MapPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true); // OPEN BY DEFAULT
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const mapRef = useRef<MapRef>(null);
 
   const userLocation = { lat: 4.819, lng: 7.038 };
@@ -53,6 +53,9 @@ export default function MapPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+      {/* 1. ONBOARDING FLOW: This handles its own visibility via localStorage */}
+      <OnboardingFlow />
+
       <div className="hidden md:block">
         <Navbar />
       </div>
@@ -337,7 +340,6 @@ export default function MapPage() {
         </AnimatePresence>
       </div>
       <MobileNav />
-      <Footer />
     </div>
   );
 }

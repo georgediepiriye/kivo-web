@@ -68,29 +68,23 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
       map.on("load", () => {
         mapRef.current = map;
+
+        // This is safe because it's inside an async callback from Mapbox
         setIsMapReady(true);
 
-        // Check for geolocation after map is loaded
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (position) => {
-              // Safety check: ensure map wasn't removed while waiting for GPS
               if (!mapRef.current) return;
-
               const { latitude, longitude } = position.coords;
               const userEl = document.createElement("div");
               userEl.className =
                 "w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg";
-
-              // This was where your error was:
-              // We now use mapRef.current specifically to be safe
               userMarkerRef.current = new mapboxgl.Marker(userEl)
                 .setLngLat([longitude, latitude])
                 .addTo(mapRef.current);
             },
-            () => {
-              console.log("User denied location access");
-            },
+            () => console.log("Location access denied"),
           );
         }
       });
@@ -98,11 +92,13 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       return () => {
         map.remove();
         mapRef.current = null;
+        setIsMapReady(false);
       };
     }, []);
 
-    // Handle Event Markers
+    // Sync Markers
     useEffect(() => {
+      // Only run when the map is actually ready
       if (!isMapReady || !mapRef.current) return;
 
       eventMarkersRef.current.forEach((m) => m.remove());
@@ -138,5 +134,4 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 );
 
 RealMap.displayName = "RealMap";
-
 export default RealMap;
