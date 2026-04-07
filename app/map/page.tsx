@@ -5,7 +5,7 @@ import Link from "next/link";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import RealMap, { MapRef } from "@/components/map/RealMap";
-import OnboardingFlow from "@/components/onboarding/OnboardingFlow"; // Added Onboarding
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import { DEFAULT_EVENTS, Event } from "@/lib/events";
 
 type FilterType = "all" | "upcoming" | "ongoing" | "past";
@@ -52,8 +52,7 @@ export default function MapPage() {
   }, [search, activeFilter]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
-      {/* 1. ONBOARDING FLOW: This handles its own visibility via localStorage */}
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-50 font-sans">
       <OnboardingFlow />
 
       <div className="hidden md:block">
@@ -198,8 +197,7 @@ export default function MapPage() {
             animate={{ y: drawerOpen ? "0%" : "75%" }}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.1}
-            onDragEnd={(e, info) => {
+            onDragEnd={(_, info) => {
               if (info.offset.y < -40) setDrawerOpen(true);
               if (info.offset.y > 40) setDrawerOpen(false);
             }}
@@ -219,49 +217,39 @@ export default function MapPage() {
                 </span>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-                {filteredEvents.map((event) => {
-                  const dist = getDistance(
-                    userLocation.lat,
-                    userLocation.lng,
-                    event.lat,
-                    event.lng,
-                  );
-                  return (
-                    <div
-                      key={event.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(event);
-                        mapRef.current?.flyTo({
-                          lat: event.lat,
-                          lng: event.lng,
-                        });
-                      }}
-                      className="flex-shrink-0 w-[280px] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm relative cursor-pointer active:scale-95 transition"
-                    >
-                      {event.id % 2 === 0 && (
-                        <div className="absolute top-4 left-4 z-10 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-md shadow-sm">
-                          TRENDING
-                        </div>
-                      )}
-                      <div className="flex gap-3">
-                        <img
-                          src={event.image}
-                          alt={event.title}
-                          className="w-20 h-20 rounded-xl object-cover"
-                        />
-                        <div className="flex flex-col justify-center overflow-hidden">
-                          <h4 className="font-bold text-sm text-gray-900 truncate">
-                            {event.emoji} {event.title}
-                          </h4>
-                          <p className="text-[11px] text-gray-500 truncate mt-1">
-                            Ada George • {dist}km away
-                          </p>
-                        </div>
+                {filteredEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    onClick={() => {
+                      setSelected(event);
+                      mapRef.current?.flyTo({ lat: event.lat, lng: event.lng });
+                    }}
+                    className="flex-shrink-0 w-[280px] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm relative cursor-pointer active:scale-95 transition"
+                  >
+                    <div className="flex gap-3">
+                      <img
+                        src={event.image}
+                        alt={event.title}
+                        className="w-20 h-20 rounded-xl object-cover"
+                      />
+                      <div className="flex flex-col justify-center overflow-hidden">
+                        <h4 className="font-bold text-sm text-gray-900 truncate">
+                          {event.emoji} {event.title}
+                        </h4>
+                        <p className="text-[11px] text-gray-500 truncate mt-1">
+                          👥 {event.attendees} people going •{" "}
+                          {getDistance(
+                            userLocation.lat,
+                            userLocation.lng,
+                            event.lat,
+                            event.lng,
+                          )}
+                          km
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>
@@ -276,20 +264,36 @@ export default function MapPage() {
               exit={{ y: "100%" }}
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
-              onDragEnd={(e, info) => {
+              onDragEnd={(_, info) => {
                 if (info.offset.y > 100) setSelected(null);
               }}
-              className="fixed bottom-0 left-0 w-full bg-white rounded-t-[40px] shadow-2xl z-[100] p-6 pb-12"
+              className="fixed bottom-0 left-0 w-full bg-white rounded-t-[40px] shadow-2xl z-[100] p-6 pb-12 max-h-[92vh] overflow-y-auto"
             >
               <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-              <div className="flex justify-between items-start mb-4">
+
+              <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
-                  <h2 className="font-black text-2xl text-gray-900">
+                  {/* GOOGLE ATTENDEE STACK */}
+                  <div className="flex items-center mb-3">
+                    <div className="flex -space-x-3 mr-3">
+                      {selected.participantImages.slice(0, 4).map((img, i) => (
+                        <img
+                          key={i}
+                          src={img}
+                          className="h-8 w-8 rounded-full ring-2 ring-white object-cover shadow-sm"
+                          alt="Attendee"
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                      +{selected.attendees - selected.participantImages.length}{" "}
+                      going
+                    </span>
+                  </div>
+
+                  <h2 className="font-black text-2xl text-gray-900 leading-tight">
                     {selected.emoji} {selected.title}
                   </h2>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Old GRA, Port Harcourt
-                  </p>
                 </div>
                 <button
                   onClick={() => setSelected(null)}
@@ -298,16 +302,29 @@ export default function MapPage() {
                   ✕
                 </button>
               </div>
+
               <img
                 src={selected.image}
-                className="w-full h-52 object-cover rounded-[24px] mb-6 shadow-sm"
+                className="w-full h-56 object-cover rounded-[28px] mb-6 shadow-sm"
+                alt="Cover"
               />
+
               <div className="flex gap-4 mb-6">
-                <div className="flex-1 bg-gray-50 p-3 rounded-2xl text-center">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">
+                <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
+                    Entry Fee
+                  </p>
+                  <p
+                    className={`text-sm font-black ${selected.isFree ? "text-green-600" : "text-gray-900"}`}
+                  >
+                    {selected.isFree ? "FREE" : selected.price}
+                  </p>
+                </div>
+                <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
                     Distance
                   </p>
-                  <p className="text-sm font-bold">
+                  <p className="text-sm font-black text-gray-900">
                     {getDistance(
                       userLocation.lat,
                       userLocation.lng,
@@ -317,23 +334,19 @@ export default function MapPage() {
                     km
                   </p>
                 </div>
-                <div className="flex-1 bg-gray-50 p-3 rounded-2xl text-center">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">
-                    Status
-                  </p>
-                  <p
-                    className="text-sm font-bold capitalize"
-                    style={{ color: statusColors[selected.status] }}
-                  >
-                    {selected.status}
-                  </p>
-                </div>
               </div>
-              <p className="text-gray-600 text-sm leading-relaxed mb-8">
-                {selected.description}
-              </p>
-              <button className="w-full py-4 bg-[#715800] text-white font-black rounded-2xl shadow-xl shadow-[#715800]/30 active:scale-95 transition">
-                Grab a Ticket
+
+              <div className="mb-8">
+                <h4 className="font-bold text-gray-900 mb-2">Description</h4>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  {selected.description}
+                </p>
+              </div>
+
+              <button className="w-full py-5 bg-[#715800] text-white font-black rounded-3xl shadow-xl shadow-[#715800]/30 active:scale-95 transition-all">
+                {selected.isFree
+                  ? "Join Event"
+                  : `Grab Ticket (${selected.price})`}
               </button>
             </motion.div>
           )}

@@ -1,144 +1,217 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import { useState } from "react";
-import EventCard from "@/components/cards/EventCard";
-import MobileNav from "@/components/layout/MobileNav";
-import Navbar from "@/components/layout/NavBar";
-import { EVENT_CATEGORIES } from "@/lib/categories";
-import type { Props as EventCardProps } from "@/components/cards/EventCard";
-import Footer from "@/components/layout/Footer";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { DEFAULT_EVENTS } from "@/lib/events";
+import { EVENT_CATEGORIES } from "@/lib/categories";
+import EventCard from "@/components/cards/EventCard";
+import Navbar from "@/components/layout/NavBar";
+import MobileNav from "@/components/layout/MobileNav";
+import Footer from "@/components/layout/Footer";
+
+const ITEMS_PER_PAGE = 5;
+
+// ✅ FIX 1: Move constants and helper functions OUTSIDE the component.
+// This prevents them from being "unstable" and breaking the React Compiler.
+const USER_LOCATION = { lat: 4.819, lng: 7.038 };
+
+const getKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (R * c).toFixed(1);
+};
 
 export default function FeedPage() {
   const router = useRouter();
 
+  // State
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<
-    keyof typeof EVENT_CATEGORIES | "all"
-  >("all");
+  const [activeCat, setActiveCat] = useState<string>("all");
+  const [dist, setDist] = useState(25);
+  const [page, setPage] = useState(1);
 
-  // ✅ ADDED: distance state
-  const [maxDistance, setMaxDistance] = useState(10);
+  // ✅ FIX 2: The compiler can now safely optimize this useMemo
+  // because USER_LOCATION is a stable reference from outside the scope.
+  const filtered = useMemo(() => {
+    const searchLower = search.toLowerCase();
 
-  const events: (EventCardProps & { id: string })[] = [
-    {
-      id: "jollof-chill",
-      title: "Jollof & Chill",
-      image:
-        "https://images.unsplash.com/photo-1664993101841-036f189719b6?w=800&auto=format&fit=crop&q=60",
-      category: "social",
-      time: "Starts 2 PM",
-      location: "Central Park, Lagos",
-      distance: "3 km",
-      buttonText: "Join Event",
-    },
-    {
-      id: "football-5aside",
-      title: "5-a-side Football",
-      image:
-        "https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=800&auto=format&fit=crop&q=60",
-      category: "sports",
-      time: "4 PM",
-      location: "No 1 Field, Port Harcourt",
-      distance: "5 km",
-      buttonText: "View Details",
-    },
-    {
-      id: "sunrise-yoga",
-      title: "Sunrise Yoga",
-      image:
-        "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&auto=format&fit=crop&q=60",
-      category: "wellness",
-      time: "7 AM",
-      location: "Skyline Terrace, Abuja",
-      distance: "2 km",
-      buttonText: "View Details",
-    },
-  ];
+    return DEFAULT_EVENTS.filter((e) => {
+      const matchSearch = e.title.toLowerCase().includes(searchLower);
+      const matchCat = activeCat === "all" || e.category === activeCat;
 
-  const filteredEvents = events.filter((event) => {
-    const matchCategory =
-      activeCategory === "all" || event.category === activeCategory;
+      // Calculate distance once per filter item
+      const distanceValue = parseFloat(
+        getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng),
+      );
+      const matchDist = distanceValue <= dist;
 
-    const matchSearch =
-      event.title.toLowerCase().includes(search.toLowerCase()) ||
-      event.location.toLowerCase().includes(search.toLowerCase());
+      return matchSearch && matchCat && matchDist;
+    });
+  }, [search, activeCat, dist]);
 
-    // ✅ ADDED: distance filtering logic
-    const eventDistance = parseFloat(event.distance || "0");
-    const matchDistance = eventDistance <= maxDistance;
-
-    return matchCategory && matchSearch && matchDistance;
-  });
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const current = filtered.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
 
-      <main className="flex-1 pt-28 px-4 max-w-3xl mx-auto w-full">
-        <h1 className="text-2xl font-bold mb-4">Discover Events</h1>
+      <main className="flex-1 pt-24 px-4 max-w-2xl mx-auto w-full">
+        <h1 className="text-3xl font-black mb-8 tracking-tighter">
+          Activity Feed
+        </h1>
 
-        {/* 🔎 SEARCH */}
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search events..."
-          className="w-full mb-4 px-4 py-3 rounded-xl border border-gray-200 outline-none"
-        />
-
-        {/* ✅ ADDED: DISTANCE FILTER */}
-        <div className="mb-4">
-          <label className="text-sm font-medium">
-            Distance: {maxDistance} km
-          </label>
+        {/* Filters */}
+        <div className="space-y-4 mb-8">
           <input
-            type="range"
-            min="1"
-            max="20"
-            value={maxDistance}
-            onChange={(e) => setMaxDistance(Number(e.target.value))}
-            className="w-full"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search events..."
+            className="w-full p-4 rounded-2xl bg-white border border-gray-100 shadow-sm outline-none focus:ring-2 focus:ring-black/5 transition-all"
           />
-        </div>
 
-        {/* CATEGORY FILTER */}
-        <div className="flex gap-3 overflow-x-auto pb-4 mb-4">
-          <button
-            onClick={() => setActiveCategory("all")}
-            className={`px-4 py-2 rounded-full ${
-              activeCategory === "all" ? "bg-blue-200" : "bg-gray-100"
-            }`}
-          >
-            All
-          </button>
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 mb-2">
+              <span>Radius</span>
+              <span className="text-black">{dist}km</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              value={dist}
+              onChange={(e) => {
+                setDist(Number(e.target.value));
+                setPage(1);
+              }}
+              className="w-full accent-black h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer"
+            />
+          </div>
 
-          {Object.entries(EVENT_CATEGORIES).map(([key, value]) => (
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
             <button
-              key={key}
-              onClick={() =>
-                setActiveCategory(key as keyof typeof EVENT_CATEGORIES)
-              }
-              className={`px-4 py-2 rounded-full ${
-                activeCategory === key ? value.color : "bg-gray-100"
+              onClick={() => {
+                setActiveCat("all");
+                setPage(1);
+              }}
+              className={`px-5 py-2 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                activeCat === "all"
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-gray-400 border-gray-100"
               }`}
             >
-              {value.label}
+              All
             </button>
-          ))}
+            {Object.entries(EVENT_CATEGORIES).map(([k, v]: any) => (
+              <button
+                key={k}
+                onClick={() => {
+                  setActiveCat(k);
+                  setPage(1);
+                }}
+                className={`px-5 py-2 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                  activeCat === k
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-gray-400 border-gray-100"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* EVENTS */}
-        <div className="space-y-6 mb-28">
-          {filteredEvents.map((event) => (
-            <div
-              key={event.id}
-              onClick={() => router.push(`/feed/${event.id}`)}
-              className="cursor-pointer"
-            >
-              <EventCard {...event} />
+        {/* List */}
+        <div className="space-y-6 min-h-[400px]">
+          <AnimatePresence mode="popLayout">
+            {current.map((e) => (
+              <motion.div
+                key={e.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                onClick={() => router.push(`/feed/${e.id}`)}
+                className="cursor-pointer"
+              >
+                <EventCard
+                  title={e.title}
+                  image={e.image}
+                  category={e.category}
+                  location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away`}
+                  time={e.status.toUpperCase()}
+                  buttonText={
+                    e.isFree ? "Free Join" : (e.price ?? "View Details")
+                  }
+                  attendees={e.attendees}
+                  participantImages={e.participantImages}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {current.length === 0 && (
+            <div className="text-center py-20">
+              <p className="text-gray-400 font-medium">
+                No vibes found in this range.
+              </p>
             </div>
-          ))}
+          )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-12 mb-20">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="p-4 bg-white rounded-2xl border border-gray-100 disabled:opacity-20 transition active:scale-90"
+            >
+              ←
+            </button>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Page {page} / {totalPages}
+            </span>
+            <button
+              disabled={page === totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="p-4 bg-white rounded-2xl border border-gray-100 disabled:opacity-20 transition active:scale-90"
+            >
+              →
+            </button>
+          </div>
+        )}
+
+        <section className="bg-black p-10 rounded-[48px] text-center text-white mb-20 shadow-2xl">
+          <h2 className="text-2xl font-black mb-2 tracking-tight">
+            Can't find a vibe?
+          </h2>
+          <p className="text-gray-400 text-sm mb-6 max-w-[200px] mx-auto">
+            Start your own activity and invite people nearby.
+          </p>
+          <button
+            onClick={() => router.push("/create")}
+            className="w-full py-4 bg-white text-black font-black rounded-3xl active:scale-95 transition-all shadow-lg"
+          >
+            Create Activity
+          </button>
+        </section>
       </main>
 
       <MobileNav />

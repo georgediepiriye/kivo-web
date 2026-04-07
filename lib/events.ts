@@ -5,9 +5,22 @@ export interface Event {
   emoji: string;
   title: string;
   image: string;
+  category: "social" | "sports" | "wellness" | "entertainment" | "education";
   status: "upcoming" | "ongoing" | "past";
   description: string;
+  attendees: number;
+  isFree: boolean;
+  price?: string;
+  participantImages: string[];
 }
+
+const AVATARS = [
+  "https://i.pravatar.cc/150?u=1",
+  "https://i.pravatar.cc/150?u=2",
+  "https://i.pravatar.cc/150?u=3",
+  "https://i.pravatar.cc/150?u=4",
+  "https://i.pravatar.cc/150?u=5",
+];
 
 export const DEFAULT_EVENTS: Event[] = [
   {
@@ -16,11 +29,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.038,
     emoji: "🎤",
     title: "Afrobeat Concert GRA",
-    image:
-      "https://images.unsplash.com/photo-1731662784037-9b2f21819caa?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    category: "entertainment",
+    image: "https://images.unsplash.com/photo-1731662784037-9b2f21819caa",
     status: "upcoming",
-    description:
-      "Join us for a night of electrifying Afrobeat music at GRA Port Harcourt! Dance, sing along, and enjoy local snacks.",
+    description: "Electrifying Afrobeat music at GRA Port Harcourt.",
+    attendees: 124,
+    isFree: false,
+    price: "₦5,000",
+    participantImages: AVATARS,
   },
   {
     id: 2,
@@ -28,10 +44,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.0355,
     emoji: "⚽",
     title: "5-a-side Football GRA",
+    category: "sports",
     image: "https://images.unsplash.com/photo-1521412644187-c49fa049e84d",
     status: "ongoing",
-    description:
-      "Grab your friends for a competitive 5-a-side football match in GRA Port Harcourt. Fun and exercise guaranteed!",
+    description: "Competitive 5-a-side football match in GRA.",
+    attendees: 18,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 3),
   },
   {
     id: 3,
@@ -39,10 +58,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.04,
     emoji: "🍻",
     title: "Neighborhood Drinks Night",
+    category: "social",
     image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf",
     status: "past",
-    description:
-      "Relax with neighbors over local drinks. Music, laughter, and good vibes in a cozy environment.",
+    description: "Relax with neighbors over local drinks.",
+    attendees: 42,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 4,
@@ -50,10 +72,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.036,
     emoji: "🏠",
     title: "House Party Vibes",
+    category: "social",
     image: "https://images.unsplash.com/photo-1590080870058-b7d3c8c1ff70",
     status: "upcoming",
-    description:
-      "A chill house party with music, snacks, and great company. Bring your friends and dance the night away!",
+    description: "Chill house party with music and snacks.",
+    attendees: 25,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 4),
   },
   {
     id: 5,
@@ -61,21 +86,28 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.039,
     emoji: "🎮",
     title: "Gaming Meetup GRA",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1603791440384-56cd371ee9a7",
     status: "ongoing",
-    description:
-      "Gamers unite! Compete in FIFA, Call of Duty, or just hang out and meet fellow gamers in the GRA area.",
+    description: "Compete in FIFA or Call of Duty.",
+    attendees: 30,
+    isFree: false,
+    price: "₦2,000",
+    participantImages: AVATARS,
   },
   {
     id: 6,
     lat: 4.876,
     lng: 7.058,
     emoji: "🏀",
-    title: "Community Basketball Game Ada George",
+    title: "Basketball Ada George",
+    category: "sports",
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b",
     status: "upcoming",
-    description:
-      "Join local teams for a friendly basketball match in Ada George. Bring your sneakers and energy!",
+    description: "Friendly basketball match in Ada George.",
+    attendees: 22,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 2),
   },
   {
     id: 7,
@@ -83,10 +115,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.055,
     emoji: "🎶",
     title: "Live Band Night Ada George",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1524230572916-58a7b80b4f37",
     status: "ongoing",
-    description:
-      "Experience live music from talented local bands. Food and drinks available for all attendees.",
+    description: "Live music from local bands.",
+    attendees: 65,
+    isFree: false,
+    price: "₦3,000",
+    participantImages: AVATARS,
   },
   {
     id: 8,
@@ -94,10 +130,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.06,
     emoji: "🏐",
     title: "Beach Volleyball Meetup",
+    category: "sports",
     image: "https://images.unsplash.com/photo-1505842465776-3e3e8d7b8e0f",
     status: "upcoming",
-    description:
-      "Sun, sand, and volleyball! Play or cheer for teams at this fun outdoor meetup in Bonny area.",
+    description: "Sun, sand, and volleyball in Bonny.",
+    attendees: 15,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 3),
   },
   {
     id: 9,
@@ -105,21 +144,27 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.057,
     emoji: "🕺",
     title: "TikTok Dance Challenge",
+    category: "social",
     image: "https://images.unsplash.com/photo-1607746882042-944635dfe10e",
     status: "upcoming",
-    description:
-      "Show off your best moves in this TikTok Dance Challenge. Record, upload, and challenge friends to match!",
+    description: "Show off your moves!",
+    attendees: 150,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 10,
     lat: 4.84,
     lng: 7.055,
     emoji: "🎨",
-    title: "Street Art Walk Odili Road",
+    title: "Street Art Walk Odili",
+    category: "wellness",
     image: "https://images.unsplash.com/photo-1506015391300-4802dc78b78e",
     status: "upcoming",
-    description:
-      "Explore Odili Road's vibrant street art. Discover local artists and snap Instagram-worthy photos.",
+    description: "Explore Odili Road's street art.",
+    attendees: 34,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 4),
   },
   {
     id: 11,
@@ -127,10 +172,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.045,
     emoji: "🎶",
     title: "Jazz Night Bonny",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1518972559570-7cc1309ea09b",
     status: "past",
-    description:
-      "An intimate evening of live jazz music in Bonny. Enjoy cocktails and smooth tunes.",
+    description: "Live jazz music in Bonny.",
+    attendees: 28,
+    isFree: false,
+    price: "₦10,000",
+    participantImages: AVATARS,
   },
   {
     id: 12,
@@ -138,10 +187,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.05,
     emoji: "🎤",
     title: "Open Mic Night Riverside",
+    category: "social",
     image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
     status: "upcoming",
-    description:
-      "Showcase your talent in music, poetry, or comedy. Everyone is welcome to perform or cheer.",
+    description: "Music, poetry, or comedy.",
+    attendees: 45,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 13,
@@ -149,10 +201,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.04,
     emoji: "🏃",
     title: "Sunrise Fun Run",
+    category: "wellness",
     image: "https://images.unsplash.com/photo-1558611848-73f7eb4001a1",
     status: "ongoing",
-    description:
-      "Start your day with a refreshing community run along scenic river paths.",
+    description: "Refreshing community morning run.",
+    attendees: 80,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 14,
@@ -160,10 +215,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.035,
     emoji: "🍺",
     title: "Local Brewery Tasting",
+    category: "social",
     image: "https://images.unsplash.com/photo-1510936111840-dc87aebf7b6c",
     status: "past",
-    description:
-      "Taste authentic local brews and learn about Rivers State brewing culture.",
+    description: "Taste authentic local brews.",
+    attendees: 12,
+    isFree: false,
+    price: "₦4,500",
+    participantImages: AVATARS.slice(0, 3),
   },
   {
     id: 15,
@@ -171,10 +230,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.042,
     emoji: "🎸",
     title: "Indie Band Showcase",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1524230572916-58a7b80b4f37",
     status: "upcoming",
-    description:
-      "Discover the best indie bands performing live. Great vibes and community energy.",
+    description: "Discover the best local indie bands.",
+    attendees: 95,
+    isFree: false,
+    price: "₦2,500",
+    participantImages: AVATARS,
   },
   {
     id: 16,
@@ -182,10 +245,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.038,
     emoji: "🛍️",
     title: "Weekend Market Fair",
+    category: "social",
     image: "https://images.unsplash.com/photo-1505842465776-3e3e8d7b8e0f",
     status: "upcoming",
-    description:
-      "Shop local! Handmade crafts, food, and music for a lively weekend in Port Harcourt.",
+    description: "Handmade crafts, food, and music.",
+    attendees: 210,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 17,
@@ -193,10 +259,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.03,
     emoji: "🎨",
     title: "Art & Crafts Expo",
+    category: "education",
     image: "https://images.unsplash.com/photo-1495435229349-e86db7bfa013",
     status: "ongoing",
-    description:
-      "See and buy unique arts and crafts from talented Rivers State creators.",
+    description: "Unique arts from local creators.",
+    attendees: 55,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 18,
@@ -204,10 +273,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.025,
     emoji: "🎶",
     title: "Acoustic Night GRA",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1518972559570-7cc1309ea09b",
     status: "past",
-    description:
-      "Enjoy live acoustic performances in a cozy, intimate setting in GRA Port Harcourt.",
+    description: "Acoustic performances in a cozy setting.",
+    attendees: 30,
+    isFree: false,
+    price: "₦5,000",
+    participantImages: AVATARS.slice(0, 4),
   },
   {
     id: 19,
@@ -215,10 +288,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.02,
     emoji: "🎤",
     title: "Comedy Night Riverside",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1529333166437-7750a6dd5a70",
     status: "upcoming",
-    description:
-      "Laugh out loud at this comedy night featuring local and national comedians.",
+    description: "Laugh with local comedians.",
+    attendees: 110,
+    isFree: false,
+    price: "₦3,500",
+    participantImages: AVATARS,
   },
   {
     id: 20,
@@ -226,10 +303,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.015,
     emoji: "🍲",
     title: "Street Food Crawl",
+    category: "social",
     image: "https://images.unsplash.com/photo-1551782450-a2132b4ba21d",
     status: "ongoing",
-    description:
-      "Taste the best local street food while walking around Port Harcourt’s bustling streets.",
+    description: "Taste local street food across the city.",
+    attendees: 180,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 21,
@@ -237,10 +317,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.01,
     emoji: "🏀",
     title: "Local Soccer Match",
+    category: "sports",
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b",
     status: "past",
-    description:
-      "Cheer for local amateur soccer teams competing in an exciting match.",
+    description: "Amateur soccer teams in action.",
+    attendees: 300,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 22,
@@ -248,10 +331,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.005,
     emoji: "🎤",
     title: "Karaoke Night",
+    category: "social",
     image: "https://images.unsplash.com/photo-1520085179755-2baf046c4a6b",
     status: "upcoming",
-    description:
-      "Sing your heart out with friends and show off your vocal skills in this fun karaoke night.",
+    description: "Sing your heart out with friends.",
+    attendees: 40,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 3),
   },
   {
     id: 23,
@@ -259,10 +345,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 7.0,
     emoji: "🏃",
     title: "Charity Fun Run",
+    category: "wellness",
     image: "https://images.unsplash.com/photo-1526404188837-52aa8314b7cf",
     status: "upcoming",
-    description:
-      "Run for a cause! Participate in a charity fun run supporting local community projects.",
+    description: "Run for a cause.",
+    attendees: 500,
+    isFree: false,
+    price: "Donation",
+    participantImages: AVATARS,
   },
   {
     id: 24,
@@ -270,10 +360,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.995,
     emoji: "🎨",
     title: "Gallery Opening PH",
+    category: "education",
     image: "https://images.unsplash.com/photo-1491333078588-55b6733c7de6",
     status: "ongoing",
-    description:
-      "Be the first to explore a new art gallery featuring contemporary Nigerian artists.",
+    description: "New gallery featuring contemporary artists.",
+    attendees: 60,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 25,
@@ -281,10 +374,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.99,
     emoji: "🎬",
     title: "Film Screening PH",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1496116218416-1d5c15d1d66c",
     status: "past",
-    description:
-      "Watch independent films by Nigerian filmmakers and discuss them with creators.",
+    description: "Independent films by Nigerian filmmakers.",
+    attendees: 45,
+    isFree: false,
+    price: "₦1,500",
+    participantImages: AVATARS.slice(0, 4),
   },
   {
     id: 26,
@@ -292,10 +389,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.985,
     emoji: "🎶",
     title: "Afropop Dance Party",
+    category: "entertainment",
     image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
     status: "upcoming",
-    description:
-      "Dance to the hottest Afropop tracks with fellow music lovers in a lively party environment.",
+    description: "Dance to the hottest Afropop tracks.",
+    attendees: 220,
+    isFree: false,
+    price: "₦4,000",
+    participantImages: AVATARS,
   },
   {
     id: 27,
@@ -303,10 +404,14 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.98,
     emoji: "🍹",
     title: "Cocktail Night PH",
+    category: "social",
     image: "https://images.unsplash.com/photo-1526040652367-28f1e35f83a1",
     status: "ongoing",
-    description:
-      "Sip on creative cocktails while socializing and enjoying live music in Port Harcourt.",
+    description: "Creative cocktails and live music.",
+    attendees: 75,
+    isFree: false,
+    price: "₦8,000",
+    participantImages: AVATARS,
   },
   {
     id: 28,
@@ -314,10 +419,13 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.975,
     emoji: "🎤",
     title: "Poetry Slam",
+    category: "social",
     image: "https://images.unsplash.com/photo-1493149738420-3e4e74d3d19b",
     status: "past",
-    description:
-      "Listen to powerful spoken word performances by Rivers State poets.",
+    description: "Powerful spoken word performances.",
+    attendees: 55,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 3),
   },
   {
     id: 29,
@@ -325,20 +433,26 @@ export const DEFAULT_EVENTS: Event[] = [
     lng: 6.97,
     emoji: "🎨",
     title: "Street Art Walk",
+    category: "wellness",
     image: "https://images.unsplash.com/photo-1506015391300-4802dc78b78e",
     status: "upcoming",
-    description:
-      "Take a guided walk exploring amazing street art and murals across Port Harcourt.",
+    description: "Guided walk exploring murals.",
+    attendees: 30,
+    isFree: true,
+    participantImages: AVATARS,
   },
   {
     id: 30,
     lat: 4.775,
     lng: 6.965,
     emoji: "🏃",
-    title: "Sunset Yoga Session",
+    title: "Sunset Yoga",
+    category: "wellness",
     image: "https://images.unsplash.com/photo-1526404188837-52aa8314b7cf",
     status: "ongoing",
-    description:
-      "Relax and rejuvenate with a calming sunset yoga session along the river.",
+    description: "Relaxing sunset yoga session.",
+    attendees: 20,
+    isFree: true,
+    participantImages: AVATARS.slice(0, 2),
   },
 ];

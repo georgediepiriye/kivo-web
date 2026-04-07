@@ -10,7 +10,9 @@ export type Props = {
   distance?: string;
   buttonText: string;
   badge?: string;
-  participants?: { name: string; avatar: string }[]; // NEW
+  // ✅ UPDATED: Matching the data from your events file
+  attendees: number;
+  participantImages: string[];
 };
 
 export default function EventCard({
@@ -22,24 +24,25 @@ export default function EventCard({
   distance,
   buttonText,
   badge,
-  participants = [], // default empty
+  attendees = 0,
+  participantImages = [],
 }: Props) {
   const categoryData = EVENT_CATEGORIES[category] ?? EVENT_CATEGORIES.social;
 
   return (
-    <div className="group rounded-2xl overflow-hidden bg-white shadow-md hover:shadow-lg transition-all">
+    <div className="group rounded-3xl overflow-hidden bg-white shadow-sm border border-gray-100 hover:shadow-md transition-all">
       {/* IMAGE */}
-      <div className="relative h-64 overflow-hidden">
+      <div className="relative h-56 overflow-hidden">
         <Image
           src={image}
           alt={title}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-500"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          sizes="(max-width: 768px) 100vw, 600px"
         />
         {badge && (
           <div className="absolute top-4 left-4">
-            <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
+            <span className="bg-black text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
               {badge}
             </span>
           </div>
@@ -48,70 +51,68 @@ export default function EventCard({
 
       {/* CONTENT */}
       <div className="p-5">
-        {/* TITLE + CATEGORY */}
-        <div className="flex justify-between items-start mb-2">
-          <h2 className="font-bold text-lg">{title}</h2>
+        <div className="flex justify-between items-start mb-3">
+          <h2 className="font-black text-xl text-gray-900 leading-tight">
+            {title}
+          </h2>
           <span
-            className={`text-xs font-bold px-3 py-1 rounded-full ${categoryData.color}`}
+            className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${categoryData.color}`}
           >
             {categoryData.label}
           </span>
         </div>
 
-        {/* TIME + LOCATION */}
-        <div className="flex flex-col gap-1 text-sm text-gray-500 mb-3">
-          <div className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[18px]">
+        <div className="flex flex-col gap-1.5 text-sm text-gray-500 mb-6">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] opacity-70">
               schedule
             </span>
-            <span>{time}</span>
+            <span className="font-medium">{time}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[18px]">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] opacity-70">
               location_on
             </span>
-            <span>
+            <span className="font-medium line-clamp-1">
               {location}
-              {distance && ` • ${distance} away`}
+              {distance && ` • ${distance}`}
             </span>
           </div>
         </div>
 
-        {/* PARTICIPANTS */}
-        {/* PARTICIPANTS */}
-        {participants.length > 0 && (
-          <div className="flex items-center mt-3 mb-4">
-            <div className="flex -space-x-3">
-              {participants.slice(0, 5).map((p, i) => (
+        {/* ATTENDEE STACK */}
+        <div className="flex items-center justify-between pt-5 border-t border-gray-50">
+          <div className="flex items-center">
+            <div className="flex -space-x-3 mr-3">
+              {participantImages.slice(0, 4).map((img, i) => (
                 <div
                   key={i}
-                  className="w-10 h-10 relative rounded-full border-2 border-white overflow-hidden"
+                  className="w-8 h-8 relative rounded-full border-2 border-white overflow-hidden shadow-sm"
                 >
                   <Image
-                    src={p.avatar}
-                    alt={p.name}
+                    src={img}
+                    alt="participant"
                     fill
                     className="object-cover"
-                    sizes="40px"
+                    sizes="32px"
                   />
                 </div>
               ))}
-              {participants.length > 5 && (
-                <div className="w-10 h-10 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs text-gray-600 font-bold">
-                  +{participants.length - 5}
+              {attendees > 4 && (
+                <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] text-gray-600 font-black shadow-sm">
+                  +{attendees - 4}
                 </div>
               )}
             </div>
-            <button className="ml-auto text-sm text-primary font-bold hover:underline">
-              View All
-            </button>
+            <span className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">
+              {attendees} Going
+            </span>
           </div>
-        )}
 
-        {/* BUTTON */}
-        <button className="w-full bg-yellow-400 py-3 rounded-full font-semibold hover:bg-yellow-500 transition active:scale-95">
-          {buttonText}
-        </button>
+          <button className="bg-yellow-400 px-6 py-2.5 rounded-2xl font-black text-xs hover:bg-yellow-500 transition active:scale-95 shadow-sm">
+            {buttonText}
+          </button>
+        </div>
       </div>
     </div>
   );
