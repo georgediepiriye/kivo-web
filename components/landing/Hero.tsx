@@ -79,7 +79,7 @@ export default function HeroAndAssistant() {
           {/* IMAGE */}
           <div className="md:w-1/2 relative">
             <Image
-              src="/images/ai_image.png"
+              src="/images/ai_landing.png"
               alt="Kivo AI Assistant"
               width={600}
               height={600}

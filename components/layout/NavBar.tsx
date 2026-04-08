@@ -16,6 +16,7 @@ export default function Navbar() {
     { href: "/feed", label: "Feed" },
     { href: "/chat", label: "AI Assistant" },
     { href: "/about", label: "About" },
+    { href: "/contact", label: "Contact Us" },
   ];
 
   return (
