@@ -5,6 +5,7 @@ export interface Event {
   emoji: string;
   title: string;
   image: string;
+  type: "activity" | "event";
   category: "social" | "sports" | "wellness" | "entertainment" | "education";
   status: "upcoming" | "ongoing" | "past";
   date: string;
@@ -36,12 +37,13 @@ export const DEFAULT_EVENTS: Event[] = [
     category: "sports",
     image: opt("https://images.unsplash.com/photo-1521412644187-c49fa049e84d"),
     status: "ongoing",
-    date: "2026-04-08", // Ongoing (Today)
+    date: "2026-04-08",
     isPublic: true,
     description: "Competitive 5-a-side football match in GRA.",
     attendees: 18,
     isFree: true,
     participantImages: AVATARS.slice(0, 3),
+    type: "activity",
   },
   {
     id: 3,
@@ -58,6 +60,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 42,
     isFree: true,
     participantImages: AVATARS,
+    type: "activity", // Changed to activity: informal hangout
   },
   {
     id: 4,
@@ -69,11 +72,12 @@ export const DEFAULT_EVENTS: Event[] = [
     image: opt("https://images.unsplash.com/photo-1590080870058-b7d3c8c1ff70"),
     status: "upcoming",
     date: "2026-04-20",
-    isPublic: false, // Private event
+    isPublic: false,
     description: "Chill house party with music and snacks.",
     attendees: 25,
     isFree: true,
     participantImages: AVATARS.slice(0, 4),
+    type: "activity", // Changed to activity: private casual gathering
   },
   {
     id: 5,
@@ -91,6 +95,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦2,000",
     participantImages: AVATARS,
+    type: "activity",
   },
   {
     id: 6,
@@ -107,6 +112,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 22,
     isFree: true,
     participantImages: AVATARS.slice(0, 2),
+    type: "activity",
   },
   {
     id: 7,
@@ -124,6 +130,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦3,000",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 8,
@@ -140,6 +147,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 15,
     isFree: true,
     participantImages: AVATARS.slice(0, 3),
+    type: "activity", // Changed to activity: casual sports meetup
   },
   {
     id: 9,
@@ -156,6 +164,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 150,
     isFree: true,
     participantImages: AVATARS,
+    type: "activity",
   },
   {
     id: 10,
@@ -172,6 +181,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 34,
     isFree: true,
     participantImages: AVATARS.slice(0, 4),
+    type: "activity", // Changed to activity: casual walk
   },
   {
     id: 11,
@@ -189,6 +199,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦10,000",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 12,
@@ -205,6 +216,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 45,
     isFree: true,
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 13,
@@ -221,6 +233,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 80,
     isFree: true,
     participantImages: AVATARS,
+    type: "activity", // Changed to activity: casual fitness
   },
   {
     id: 14,
@@ -238,6 +251,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦4,500",
     participantImages: AVATARS.slice(0, 3),
+    type: "event",
   },
   {
     id: 15,
@@ -255,6 +269,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦2,500",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 16,
@@ -271,6 +286,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 210,
     isFree: true,
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 17,
@@ -287,6 +303,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 55,
     isFree: true,
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 18,
@@ -304,6 +321,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦5,000",
     participantImages: AVATARS.slice(0, 4),
+    type: "event",
   },
   {
     id: 19,
@@ -321,6 +339,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦3,500",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 20,
@@ -337,6 +356,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 180,
     isFree: true,
     participantImages: AVATARS,
+    type: "activity", // Changed to activity: casual exploration
   },
   {
     id: 21,
@@ -353,6 +373,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 300,
     isFree: true,
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 22,
@@ -369,6 +390,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 40,
     isFree: true,
     participantImages: AVATARS.slice(0, 3),
+    type: "activity", // Changed to activity: typical social outing
   },
   {
     id: 23,
@@ -386,6 +408,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "Donation",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 24,
@@ -402,6 +425,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 60,
     isFree: true,
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 25,
@@ -419,6 +443,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦1,500",
     participantImages: AVATARS.slice(0, 4),
+    type: "event",
   },
   {
     id: 26,
@@ -436,6 +461,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦4,000",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 27,
@@ -453,6 +479,7 @@ export const DEFAULT_EVENTS: Event[] = [
     isFree: false,
     price: "₦8,000",
     participantImages: AVATARS,
+    type: "event",
   },
   {
     id: 28,
@@ -469,6 +496,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 55,
     isFree: true,
     participantImages: AVATARS.slice(0, 3),
+    type: "event",
   },
   {
     id: 29,
@@ -485,6 +513,7 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 30,
     isFree: true,
     participantImages: AVATARS,
+    type: "activity", // Changed to activity: casual group walk
   },
   {
     id: 30,
@@ -501,5 +530,6 @@ export const DEFAULT_EVENTS: Event[] = [
     attendees: 20,
     isFree: true,
     participantImages: AVATARS.slice(0, 2),
+    type: "activity", // Changed to activity: typical session/meetup
   },
 ];

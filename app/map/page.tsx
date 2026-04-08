@@ -10,6 +10,7 @@ import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import { DEFAULT_EVENTS, Event } from "@/lib/events";
 
 type FilterType = "all" | "upcoming" | "ongoing" | "past";
+type KindType = "all" | "event" | "activity";
 
 const statusColors: Record<Exclude<FilterType, "all">, string> = {
   upcoming: "#10b981",
@@ -34,11 +35,11 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 export default function MapPage() {
   const [selected, setSelected] = useState<Event | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [activeKind, setActiveKind] = useState<KindType>("all");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
 
-  // State for Likes
   const [likedEvents, setLikedEvents] = useState<Set<number>>(new Set());
 
   const mapRef = useRef<MapRef>(null);
@@ -79,9 +80,12 @@ export default function MapPage() {
         .includes(search.toLowerCase());
       const matchesFilter =
         activeFilter === "all" ? true : event.status === activeFilter;
-      return matchesSearch && matchesFilter;
+      const matchesKind =
+        activeKind === "all" ? true : event.type === activeKind;
+
+      return matchesSearch && matchesFilter && matchesKind;
     });
-  }, [search, activeFilter]);
+  }, [search, activeFilter, activeKind]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50 font-sans">
@@ -92,14 +96,14 @@ export default function MapPage() {
       </div>
 
       <div className="flex-1 relative">
-        {/* MOBILE TOP BAR */}
+        {/* MOBILE TOP BAR (Kept for search functionality) */}
         <div className="md:hidden fixed top-0 left-0 w-full z-[70] bg-white/95 backdrop-blur-md shadow-sm px-4 py-3 flex items-center justify-between gap-2">
           <div className="font-bold text-lg text-[#715800]">Kivo</div>
           <div className="flex-1">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search local events..."
+              placeholder="Search local..."
               className="w-full px-4 py-2 rounded-full bg-gray-100 text-sm outline-none border border-transparent focus:border-[#715800]/20"
             />
           </div>
@@ -147,13 +151,7 @@ export default function MapPage() {
                   <Link href="/feed" className="font-medium text-gray-600">
                     Feed
                   </Link>
-                  <Link href="/about" className="font-medium text-gray-600">
-                    About
-                  </Link>
-                  <Link href="/contact" className="font-medium text-gray-600">
-                    Contact Us
-                  </Link>
-
+                  <hr className="border-gray-100" />
                   <Link
                     href="/auth/signin"
                     className="font-medium text-gray-600"
@@ -172,19 +170,27 @@ export default function MapPage() {
           )}
         </AnimatePresence>
 
-        {/* DESKTOP SEARCH */}
-        <div className="hidden md:block fixed top-[80px] left-1/2 -translate-x-1/2 z-[50] w-[85%] max-w-md">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="What do you want to do?"
-            className="w-full px-5 py-3 rounded-full bg-white shadow-xl outline-none text-sm border border-gray-100"
-          />
-        </div>
+        {/* COMPACT FLOATING FILTERS */}
+        <div className="fixed top-[70px] md:top-[100px] left-1/2 -translate-x-1/2 z-[40] w-[92%] max-w-md flex flex-col gap-3">
+          {/* Activity vs Event Pill */}
+          <div className="flex bg-white/80 backdrop-blur-md p-1 rounded-full shadow-lg border border-white/20 self-center">
+            {(["all", "event", "activity"] as KindType[]).map((kind) => (
+              <button
+                key={kind}
+                onClick={() => setActiveKind(kind)}
+                className={`px-5 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${
+                  activeKind === kind
+                    ? "bg-[#715800] text-white shadow-sm"
+                    : "text-gray-400"
+                }`}
+              >
+                {kind}
+              </button>
+            ))}
+          </div>
 
-        {/* FILTER BAR */}
-        <div className="fixed top-[70px] md:top-[140px] left-1/2 -translate-x-1/2 z-[40] w-[92%] max-w-md">
-          <div className="flex justify-between items-center bg-white/90 backdrop-blur-xl shadow-lg rounded-2xl p-2 border border-white/20">
+          {/* Status Filter Bar */}
+          <div className="flex justify-between items-center bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-2 border border-white/20">
             {(["all", "upcoming", "ongoing", "past"] as FilterType[]).map(
               (status) => (
                 <button
@@ -219,14 +225,12 @@ export default function MapPage() {
           </div>
         </div>
 
-        {/* MAP */}
         <RealMap
           ref={mapRef}
           onSelect={setSelected}
           filteredEvents={filteredEvents}
         />
 
-        {/* LOCATION BUTTON */}
         {!selected && (
           <motion.button
             animate={{ bottom: drawerOpen ? 260 : 160 }}
@@ -249,18 +253,16 @@ export default function MapPage() {
               if (info.offset.y < -40) setDrawerOpen(true);
               if (info.offset.y > 40) setDrawerOpen(false);
             }}
-            className="fixed bottom-[80px] left-0 w-full bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[50] border-t border-gray-100 cursor-grab active:cursor-grabbing"
+            className="fixed bottom-[80px] left-0 w-full bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-[50] border-t border-gray-100"
           >
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-3" />
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto my-3" />
             <div className="px-5 pb-6">
               <div
                 className="flex items-center justify-between mb-4 cursor-pointer"
                 onClick={() => setDrawerOpen(!drawerOpen)}
               >
-                <h3 className="font-bold text-gray-900">
-                  Things happening near you
-                </h3>
-                <span className="text-xs font-bold text-[#715800] bg-[#715800]/5 px-3 py-1 rounded-full">
+                <h3 className="font-bold text-gray-900">Things near you</h3>
+                <span className="text-[10px] font-black text-[#715800] bg-[#715800]/5 px-3 py-1 rounded-full uppercase tracking-tighter">
                   {drawerOpen ? "Hide" : "Show All"}
                 </span>
               </div>
@@ -275,17 +277,22 @@ export default function MapPage() {
                     className="flex-shrink-0 w-[280px] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm relative cursor-pointer active:scale-95 transition"
                   >
                     <div className="flex gap-3">
-                      <img
-                        src={event.image}
-                        alt={event.title}
-                        className="w-20 h-20 rounded-xl object-cover"
-                      />
-                      <div className="flex flex-col justify-center overflow-hidden">
+                      <div className="relative">
+                        <img
+                          src={event.image}
+                          alt={event.title}
+                          className="w-20 h-20 rounded-xl object-cover"
+                        />
+                        <div className="absolute -top-1 -left-1 bg-white shadow-sm px-1.5 py-0.5 rounded border border-gray-50 text-[8px] font-black uppercase text-[#715800]">
+                          {event.category}
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-center overflow-hidden flex-1">
                         <h4 className="font-bold text-sm text-gray-900 truncate">
                           {event.emoji} {event.title}
                         </h4>
                         <p className="text-[11px] text-gray-500 truncate mt-1">
-                          👥 {event.attendees} people going •{" "}
+                          👥 {event.attendees} •{" "}
                           {getDistance(
                             userLocation.lat,
                             userLocation.lng,
@@ -318,7 +325,6 @@ export default function MapPage() {
               className="fixed bottom-0 left-0 w-full bg-white rounded-t-[40px] shadow-2xl z-[100] p-6 pb-12 max-h-[92vh] overflow-y-auto"
             >
               <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
                   <div className="flex items-center mb-3">
@@ -328,22 +334,19 @@ export default function MapPage() {
                           key={i}
                           src={img}
                           className="h-8 w-8 rounded-full ring-2 ring-white object-cover shadow-sm"
-                          alt="Attendee"
+                          alt="User"
                         />
                       ))}
                     </div>
-                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                    <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase">
                       +{selected.attendees - selected.participantImages.length}{" "}
                       going
                     </span>
                   </div>
-
                   <h2 className="font-black text-2xl text-gray-900 leading-tight">
                     {selected.emoji} {selected.title}
                   </h2>
                 </div>
-
-                {/* LIKE & SHARE BUTTONS */}
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => handleShare(e, selected)}
@@ -360,7 +363,7 @@ export default function MapPage() {
                       className={
                         likedEvents.has(selected.id)
                           ? "fill-red-500 text-red-500"
-                          : "text-gray-600"
+                          : "text-gray-400"
                       }
                     />
                   </button>
@@ -372,13 +375,11 @@ export default function MapPage() {
                   </button>
                 </div>
               </div>
-
               <img
                 src={selected.image}
                 className="w-full h-56 object-cover rounded-[28px] mb-6 shadow-sm"
                 alt="Cover"
               />
-
               <div className="flex gap-4 mb-6">
                 <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
                   <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
@@ -392,30 +393,22 @@ export default function MapPage() {
                 </div>
                 <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
                   <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
-                    Distance
+                    Category
                   </p>
-                  <p className="text-sm font-black text-gray-900">
-                    {getDistance(
-                      userLocation.lat,
-                      userLocation.lng,
-                      selected.lat,
-                      selected.lng,
-                    )}{" "}
-                    km
+                  <p className="text-sm font-black text-gray-900 capitalize">
+                    {selected.category}
                   </p>
                 </div>
               </div>
-
               <div className="mb-8">
                 <h4 className="font-bold text-gray-900 mb-2">Description</h4>
                 <p className="text-gray-500 text-sm leading-relaxed">
                   {selected.description}
                 </p>
               </div>
-
               <button className="w-full py-5 bg-[#715800] text-white font-black rounded-3xl shadow-xl shadow-[#715800]/30 active:scale-95 transition-all">
                 {selected.isFree
-                  ? "Join Event"
+                  ? `Join ${selected.type}`
                   : `Grab Ticket (${selected.price})`}
               </button>
             </motion.div>
