@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/NavBar";
-import MobileNav from "@/components/layout/MobileNav";
 
 export default function SignInPage() {
   return (
@@ -148,9 +147,6 @@ export default function SignInPage() {
           </p>
         </div>
       </div>
-
-      {/* MOBILE TAB BAR NAVIGATION */}
-      <MobileNav />
     </div>
   );
 }

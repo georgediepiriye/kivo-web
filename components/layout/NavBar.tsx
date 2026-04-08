@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { HiMenu, HiX } from "react-icons/hi";
-import { Cpu, Bell } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+// Importing stable icons from the latest lucide-react
+import { Cpu, Bell, ChevronRight } from "lucide-react";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,41 +23,49 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-[#f5f6f7]/90 backdrop-blur-md shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-3 flex justify-between items-center">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
+    <nav className="fixed top-0 w-full z-50 bg-[#FDFDFB]/90 backdrop-blur-xl border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex justify-between items-center">
+        {/* LOGO SECTION */}
+        <Link
+          href="/"
+          className="flex items-center gap-2 cursor-pointer relative z-[60]"
+        >
           <div className="relative flex items-center justify-center w-10 h-10">
-            <Cpu size={28} className="text-[#715800] z-10" />
-            <div className="absolute w-8 h-8 bg-primary-container rounded-full -z-0 logo-pulse"></div>
+            <Cpu size={26} className="text-[#715800] z-10" />
+            <div className="absolute w-8 h-8 bg-[#715800]/10 rounded-full -z-0 animate-pulse"></div>
           </div>
-          <span className="text-2xl font-extrabold text-[#715800] tracking-tight">
+          <span className="text-2xl font-black text-[#715800] tracking-tighter">
             Kivo
           </span>
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-10">
+        {/* DESKTOP NAVIGATION */}
+        <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-slate-600 font-medium hover:text-[#715800] transition-colors"
+              className="text-gray-500 font-bold text-xs hover:text-[#715800] transition-all uppercase tracking-[0.15em]"
             >
               {link.label}
             </Link>
           ))}
         </div>
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-4">
-          <button className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center hover:bg-[#f8d472]/10 transition-colors active:scale-95">
-            <Bell size={20} className="text-on-surface-variant" />
+        {/* RIGHT SIDE ACTIONS */}
+        <div className="flex items-center gap-3 relative z-[60]">
+          {/* Notifications Button */}
+          <button className="hidden sm:flex w-10 h-10 rounded-2xl bg-gray-50 items-center justify-center hover:bg-[#715800]/5 transition-colors group">
+            <Bell
+              size={18}
+              className="text-gray-400 group-hover:text-[#715800]"
+            />
           </button>
 
+          {/* Profile Link */}
           <Link
             href="/profile"
-            className="w-10 h-10 rounded-full overflow-hidden relative"
+            className="w-10 h-10 rounded-2xl overflow-hidden relative border-2 border-transparent hover:border-[#715800] transition-all"
           >
             <Image
               src="/images/profile.jpg"
@@ -66,65 +77,103 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* Desktop Buttons */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center gap-2 ml-2">
             <Link
               href="/auth/signin"
-              className="px-5 py-2 text-slate-600 font-semibold hover:text-[#715800] transition-colors"
+              className="px-5 py-2.5 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:text-[#715800] transition-colors"
             >
               Log In
             </Link>
             <Link
               href="/auth/signup"
-              className="px-5 py-2 text-slate-600 font-semibold hover:text-[#715800] transition-colors"
+              className="px-6 py-2.5 bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-[#715800] transition-all shadow-lg shadow-black/5"
             >
               Sign Up
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* Mobile Menu Toggle Button */}
           <button
-            className="md:hidden w-10 h-10 flex items-center justify-center text-2xl"
+            className="md:hidden w-11 h-11 flex items-center justify-center text-2xl bg-gray-50 rounded-2xl text-[#715800] transition-transform active:scale-90"
             onClick={toggleMobileMenu}
           >
-            {isMobileMenuOpen ? <HiX /> : <HiMenu />}
+            {isMobileMenuOpen ? <HiX size={24} /> : <HiMenu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white/95 backdrop-blur-md shadow-xl px-6 py-6 flex flex-col gap-4 border-t border-gray-100 absolute w-full left-0">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-slate-700 text-lg font-semibold hover:text-[#715800] transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.label}
-            </Link>
-          ))}
+      {/* FULL-SCREEN MOBILE DRAWER */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 top-0 left-0 w-full h-screen bg-white z-50 md:hidden flex flex-col"
+          >
+            {/* Spacer for the fixed Header height */}
+            <div className="h-24" />
 
-          {/* Mobile Auth Buttons */}
-          <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-gray-100">
-            <Link
-              href="/auth/signin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-4 rounded-2xl bg-gray-100 text-slate-700 font-bold hover:bg-gray-200 transition-all active:scale-[0.98] text-center"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/auth/signup"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-4 rounded-2xl bg-[#715800] text-white font-bold hover:bg-[#5a4600] shadow-lg shadow-[#715800]/20 transition-all active:scale-[0.98] text-center"
-            >
-              Sign Up
-            </Link>
-          </div>
-        </div>
-      )}
+            <div className="flex-1 overflow-y-auto px-8 pb-10">
+              <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.3em] mb-8">
+                Menu
+              </p>
+
+              <div className="flex flex-col gap-2">
+                {navLinks.map((link, i) => (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    key={link.href}
+                  >
+                    <Link
+                      href={link.href}
+                      className="group flex items-center justify-between py-5 border-b border-gray-50 hover:px-2 transition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="text-4xl font-black tracking-tighter text-gray-900 group-hover:text-[#715800]">
+                        {link.label}
+                      </span>
+                      <ChevronRight className="text-gray-300 group-hover:text-[#715800] group-hover:translate-x-1 transition-all" />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Mobile CTA/Auth Buttons */}
+              <div className="mt-12 space-y-4">
+                <Link
+                  href="/auth/signup"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg shadow-xl shadow-black/10 active:scale-95 transition-all"
+                >
+                  Create Account
+                </Link>
+                <Link
+                  href="/auth/signin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all"
+                >
+                  Sign In
+                </Link>
+              </div>
+
+              {/* Drawer Bottom Info */}
+              <div className="mt-16 pt-8 border-t border-gray-100 flex flex-col gap-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Kivo Social Discovery Hub
+                </p>
+                <p className="text-xs text-gray-300 font-medium italic">
+                  Made for Port Harcourt.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

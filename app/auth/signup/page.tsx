@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/NavBar";
-import MobileNav from "@/components/layout/MobileNav";
 
 export default function SignUpPage() {
   return (
@@ -164,9 +163,6 @@ export default function SignUpPage() {
           </p>
         </motion.div>
       </div>
-
-      {/* Bottom Navigation */}
-      <MobileNav />
     </div>
   );
 }
