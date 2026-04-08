@@ -12,7 +12,7 @@ export default function MobileNav() {
     { name: "Discover", href: "/map", icon: Compass },
     { name: "Create", href: "/create", icon: PlusCircle },
     { name: "Feed", href: "/feed", icon: Layers },
-    { name: "AI", href: "/ai", icon: Bot },
+    { name: "AI", href: "/chat", icon: Bot },
   ];
 
   return (

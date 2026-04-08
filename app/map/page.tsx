@@ -147,6 +147,13 @@ export default function MapPage() {
                   <Link href="/feed" className="font-medium text-gray-600">
                     Feed
                   </Link>
+                  <Link href="/about" className="font-medium text-gray-600">
+                    About
+                  </Link>
+                  <Link href="/contact" className="font-medium text-gray-600">
+                    Contact Us
+                  </Link>
+
                   <Link
                     href="/auth/signin"
                     className="font-medium text-gray-600"
@@ -158,9 +165,6 @@ export default function MapPage() {
                     className="font-medium text-gray-600"
                   >
                     Sign Up
-                  </Link>
-                  <Link href="/about" className="font-medium text-gray-600">
-                    About
                   </Link>
                 </div>
               </motion.div>
