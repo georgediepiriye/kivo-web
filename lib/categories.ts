@@ -59,5 +59,8 @@ export const EVENT_CATEGORIES = {
     label: "Culture",
     color: "bg-emerald-100 text-emerald-800",
   },
-  entertainment: { label: "Entertainment", color: "bg-pink-50" },
+  entertainment: {
+    label: "Entertainment",
+    color: "bg-pink-50 text-rose-700",
+  },
 };

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Heart, Share2, X } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
@@ -36,9 +37,40 @@ export default function MapPage() {
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const mapRef = useRef<MapRef>(null);
 
+  // State for Likes
+  const [likedEvents, setLikedEvents] = useState<Set<number>>(new Set());
+
+  const mapRef = useRef<MapRef>(null);
   const userLocation = { lat: 4.819, lng: 7.038 };
+
+  const toggleLike = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    setLikedEvents((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  const handleShare = async (e: React.MouseEvent, event: Event) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: event.title,
+          text: `Check out ${event.title} on Kivo!`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log("Error sharing", err);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Link copied to clipboard!");
+    }
+  };
 
   const filteredEvents = useMemo(() => {
     return DEFAULT_EVENTS.filter((event) => {
@@ -115,8 +147,20 @@ export default function MapPage() {
                   <Link href="/feed" className="font-medium text-gray-600">
                     Feed
                   </Link>
-                  <Link href="/profile" className="font-medium text-gray-600">
-                    Profile
+                  <Link
+                    href="/auth/signin"
+                    className="font-medium text-gray-600"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="font-medium text-gray-600"
+                  >
+                    Sign Up
+                  </Link>
+                  <Link href="/about" className="font-medium text-gray-600">
+                    About
                   </Link>
                 </div>
               </motion.div>
@@ -273,7 +317,6 @@ export default function MapPage() {
 
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
-                  {/* GOOGLE ATTENDEE STACK */}
                   <div className="flex items-center mb-3">
                     <div className="flex -space-x-3 mr-3">
                       {selected.participantImages.slice(0, 4).map((img, i) => (
@@ -295,12 +338,35 @@ export default function MapPage() {
                     {selected.emoji} {selected.title}
                   </h2>
                 </div>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center"
-                >
-                  ✕
-                </button>
+
+                {/* LIKE & SHARE BUTTONS */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => handleShare(e, selected)}
+                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => toggleLike(e, selected.id)}
+                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <Heart
+                      size={18}
+                      className={
+                        likedEvents.has(selected.id)
+                          ? "fill-red-500 text-red-500"
+                          : "text-gray-600"
+                      }
+                    />
+                  </button>
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <img
