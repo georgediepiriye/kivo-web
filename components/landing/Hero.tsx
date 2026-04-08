@@ -1,6 +1,17 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
+// Importing consistent icons from Lucide
+import {
+  Zap,
+  PlayCircle,
+  PartyPopper,
+  MapPin,
+  Lightbulb,
+  Bell,
+  MessageCircle,
+} from "lucide-react";
 
 export default function HeroAndAssistant() {
   return (
@@ -9,8 +20,9 @@ export default function HeroAndAssistant() {
       <section className="max-w-7xl mx-auto px-6 md:px-8 py-16 md:py-24 flex flex-col md:flex-row items-center gap-12 md:gap-16 pt-32">
         {/* LEFT SIDE */}
         <div className="flex-1 space-y-6 md:space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-black rounded-full text-xs font-bold tracking-widest uppercase">
-            <span className="material-symbols-outlined text-sm">bolt</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-black rounded-full text-xs font-bold tracking-widest uppercase border border-black/5">
+            {/* Bolt replaced with Lucide Zap */}
+            <Zap size={14} className="fill-current" />
             Live in port harcourt
           </div>
 
@@ -28,13 +40,13 @@ export default function HeroAndAssistant() {
 
           <div className="flex flex-wrap gap-4 pt-4">
             <Link href="/map">
-              <button className="px-6 md:px-8 py-3 md:py-4 bg-primary text-white font-bold rounded-full text-lg hover:scale-105 transition">
+              <button className="px-6 md:px-8 py-3 md:py-4 bg-primary text-white font-bold rounded-full text-lg hover:scale-105 transition shadow-lg shadow-primary/20">
                 Get started
               </button>
             </Link>
 
             <button className="px-6 md:px-8 py-3 md:py-4 bg-gray-200 text-black font-bold rounded-full text-lg flex items-center gap-2 hover:bg-gray-300 transition">
-              <span className="material-symbols-outlined">play_circle</span>
+              <PlayCircle size={22} />
               See how it works
             </button>
           </div>
@@ -53,10 +65,10 @@ export default function HeroAndAssistant() {
             />
           </div>
 
-          <div className="absolute -bottom-10 -left-10 bg-white/80 backdrop-blur-lg p-5 rounded-2xl shadow-lg max-w-[240px] hidden lg:block -rotate-3">
+          <div className="absolute -bottom-10 -left-10 bg-white/80 backdrop-blur-lg p-5 rounded-2xl shadow-lg max-w-[240px] hidden lg:block -rotate-3 border border-white/20">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center">
-                <span className="material-symbols-outlined">celebration</span>
+              <div className="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-primary">
+                <PartyPopper size={20} />
               </div>
 
               <div>
@@ -65,7 +77,7 @@ export default function HeroAndAssistant() {
               </div>
             </div>
 
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 italic">
               “Found this through Kivo — easily one of the best spots this
               weekend.”
             </p>
@@ -99,44 +111,56 @@ export default function HeroAndAssistant() {
               left wondering what to do.
             </p>
 
-            <ul className="flex flex-col gap-4">
-              <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary text-3xl">
-                  place
-                </span>
+            <ul className="flex flex-col gap-5">
+              <li className="flex items-start gap-4">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <MapPin size={24} />
+                </div>
                 <div>
-                  <strong>Location-aware suggestions:</strong> Discover nearby
-                  events instantly.
+                  <strong className="block text-gray-900">
+                    Location-aware suggestions
+                  </strong>
+                  <span className="text-gray-600">
+                    Discover nearby events instantly.
+                  </span>
                 </div>
               </li>
-              <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary text-3xl">
-                  lightbulb
-                </span>
+              <li className="flex items-start gap-4">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <Lightbulb size={24} />
+                </div>
                 <div>
-                  <strong>Smart recommendations:</strong> AI learns what you
-                  love.
+                  <strong className="block text-gray-900">
+                    Smart recommendations
+                  </strong>
+                  <span className="text-gray-600">
+                    AI learns what you love.
+                  </span>
                 </div>
               </li>
-              <li className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-primary text-3xl">
-                  notifications
-                </span>
+              <li className="flex items-start gap-4">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <Bell size={24} />
+                </div>
                 <div>
-                  <strong>Real-time alerts:</strong> Never miss spontaneous
-                  activities.
+                  <strong className="block text-gray-900">
+                    Real-time alerts
+                  </strong>
+                  <span className="text-gray-600">
+                    Never miss spontaneous activities.
+                  </span>
                 </div>
               </li>
             </ul>
 
-            {/* WhatsApp Bot Button with icon */}
+            {/* WhatsApp Bot Button */}
             <a
               href="https://wa.me/2348012345678?text=Hi!%20I%20want%20to%20chat%20with%20Kivo%20AI%20Assistant"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-6 w-fit bg-[#25D366] hover:bg-[#1DA851] text-white px-6 py-3 rounded-full font-semibold flex items-center gap-3 transition"
+              className="mt-6 w-fit bg-[#25D366] hover:bg-[#1DA851] text-white px-8 py-4 rounded-full font-bold flex items-center gap-3 transition shadow-xl shadow-green-500/20"
             >
-              <span className="material-symbols-outlined text-2xl">chat</span>
+              <MessageCircle size={22} />
               Chat with Kivo on WhatsApp
             </a>
           </div>
