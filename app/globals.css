@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Kivo Custom Mapbox Search Styling */
+.kivo-search-container input {
+  padding-left: 3.5rem !important; /* Prevents text from overlapping your MapPin icon */
+  background-color: #f9fafb !important; /* Matches your gray-50 fields */
+  border-radius: 24px !important;
+  height: 60px !important; /* Matches your other custom inputs */
+  font-family: inherit !important;
+  border: 2px solid transparent !important;
+}
+
+.kivo-search-container input:focus {
+  background-color: white !important;
+  border-color: #715800 !important; /* Matches your brand gold/brown */
+  outline: none !important;
+}
+
+/* Ensure the Mapbox dropdown matches your UI */
+.mapboxgl-ctrl-geocoder {
+  width: 100% !important;
+  max-width: none !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 20px !important;
+  border: 1px solid #f1f5f9 !important;
+}

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // Added for redirection
 import {
   Settings,
   MapPin,
@@ -22,9 +23,11 @@ import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 
 export default function ProfilePage() {
+  const router = useRouter();
+
   const user = {
-    name: "Tari Edwards",
-    handle: "@tari_ph",
+    name: "George Diepiriye",
+    handle: "@george_ph",
     location: "GRA Phase 2, Port Harcourt",
     bio: "Always looking for the next live set or garden party in the city. Tech by day, vibe curator by night.",
     stats: [
@@ -62,13 +65,28 @@ export default function ProfilePage() {
     },
   ];
 
+  // SIGN OUT LOGIC
+  const handleSignOut = () => {
+    // 1. Remove the token from storage
+    localStorage.removeItem("token");
+
+    // 2. Optional: Clear other user-related data
+    // localStorage.removeItem("user_data");
+
+    // 3. Redirect to landing page or sign-in
+    router.push("/");
+
+    // 4. Force a refresh to update the Navbar state immediately
+    router.refresh();
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans selection:bg-[#715800]/20">
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 md:px-8 pt-32 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* --- LEFT SIDEBAR: IDENTITY (4 COLUMNS) --- */}
+          {/* --- LEFT SIDEBAR: IDENTITY --- */}
           <aside className="lg:col-span-4 space-y-6">
             <div className="bg-white rounded-[2.5rem] border border-slate-200/60 p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sticky top-32">
               <div className="flex flex-col items-center text-center">
@@ -90,7 +108,7 @@ export default function ProfilePage() {
                 <div className="mt-6 space-y-1">
                   <div className="flex items-center justify-center gap-1.5">
                     <h2 className="text-2xl font-black tracking-tight uppercase">
-                      George Diepiriye
+                      {user.name}
                     </h2>
                     <ShieldCheck
                       size={18}
@@ -100,7 +118,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <p className="text-[#715800] font-bold tracking-wide">
-                    @george_ph
+                    {user.handle}
                   </p>
                 </div>
 
@@ -139,9 +157,8 @@ export default function ProfilePage() {
             </div>
           </aside>
 
-          {/* --- RIGHT CONTENT: DASHBOARD (8 COLUMNS) --- */}
+          {/* --- RIGHT CONTENT: DASHBOARD --- */}
           <section className="lg:col-span-8 space-y-8">
-            {/* BENTO ROW: AI & VIBE */}
             <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-[#121212] rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition duration-700">
@@ -194,7 +211,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* MAIN ACTIVITY CARD */}
             <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm p-8 md:p-10">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
                 <div>
@@ -263,8 +279,15 @@ export default function ProfilePage() {
 
             {/* LOGOUT AREA */}
             <div className="flex justify-center pt-4">
-              <button className="flex items-center gap-2 text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors">
-                <LogOut size={16} /> Sign Out of Kivo
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:text-red-500 transition-colors group"
+              >
+                <LogOut
+                  size={16}
+                  className="group-hover:-translate-x-1 transition-transform"
+                />
+                Sign Out of Kivo
               </button>
             </div>
           </section>

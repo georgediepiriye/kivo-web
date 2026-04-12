@@ -2,36 +2,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import Footer from "@/components/layout/Footer";
 import CreateEventMap, { MapRef } from "@/components/map/CreateEventMap";
+import toast, { Toaster } from "react-hot-toast";
+import { SearchBox } from "@mapbox/search-js-react";
+
 import {
   Calendar,
   Clock,
   MapPin,
-  Image as ImageIcon,
+  ImageIcon,
   Users,
   Lock,
   ChevronRight,
   Trash2,
-  Sparkles,
+  LogIn,
+  X,
+  Loader2,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { EVENT_CATEGORIES } from "@/lib/categories";
+import { EVENT_TYPES } from "@/lib/events";
 
-const categories = [
-  "Music",
-  "Sports",
-  "Education",
-  "Technology",
-  "Food & Drink",
-  "Networking",
-  "Health & Fitness",
-  "Other",
-];
+const categories = Object.values(EVENT_CATEGORIES).map((cat) => cat.label);
 
 export default function CreateEventPage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -48,12 +52,34 @@ export default function CreateEventPage() {
   const [allowAnonymous, setAllowAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [type, setType] = useState<"event" | "activity">("activity");
+  // Note: type "showcase" is internally used for "Event" UI
+  const [type, setType] = useState<"activity" | "showcase">("activity");
   const [fee, setFee] = useState<number>(0);
   const [maxParticipants, setMaxParticipants] = useState<number | "">("");
 
   const [showMapPicker, setShowMapPicker] = useState(false);
   const mapRef = useRef<MapRef>(null);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const token = localStorage.getItem("token");
+      setIsLoggedIn(!!token);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const handleRetrieve = (res: any) => {
+    const feature = res.features[0];
+    if (feature) {
+      const [lng, lat] = feature.geometry.coordinates;
+      const address =
+        feature.properties.full_address || feature.properties.name;
+
+      setLocation(address);
+      setLocationCoords({ lat, lng });
+      toast.success("Location pinned!");
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -69,31 +95,86 @@ export default function CreateEventPage() {
   };
 
   const handleSubmit = async () => {
-    if (!locationCoords) return alert("Please pin the location on the map.");
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (!title || !description || !category || !date || !time || !location) {
+      return toast.error("Please fill in all basic fields.");
+    }
+
+    if (!locationCoords) {
+      return toast.error("Please pin the location on the map.");
+    }
+
     setSubmitting(true);
-    // ... Logic stays same
-    setSubmitting(false);
+
+    try {
+      const categoryKey = Object.keys(EVENT_CATEGORIES).find(
+        (key) =>
+          EVENT_CATEGORIES[key as keyof typeof EVENT_CATEGORIES].label ===
+          category,
+      );
+
+      const payload = {
+        title,
+        description,
+        category: categoryKey,
+        type, // Sends "showcase" or "activity" to API
+        date: `${date}T${time}`,
+        lng: locationCoords.lng,
+        lat: locationCoords.lat,
+        address: location,
+        neighborhood: "Port Harcourt",
+        isPublic,
+        allowAnonymous,
+        price: fee,
+        isFree: fee === 0,
+        capacity: maxParticipants || null,
+      };
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to create event");
+
+      toast.success("Successfully broadcasted to the city!");
+      router.push("/map");
+    } catch (error) {
+      toast.error("Something went wrong. Please try again.");
+      console.error(error);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-slate-900">
+      <Toaster position="bottom-center" />
       <Navbar />
 
-      {/* Page Header Area */}
       <header className="pt-28 pb-12 px-6 text-center max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#715800]/5 text-[#715800] text-xs font-bold uppercase tracking-widest mb-4">
-          <Sparkles size={14} /> Create a vibe
+          <span className="animate-pulse">✨</span> Create a vibe
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-gray-900 mb-6">
           Host an{" "}
           <span className="text-[#715800]">
-            {type === "event" ? "Event" : "Activity"}
+            {type === "showcase" ? "Event" : "Activity"}
           </span>
         </h1>
 
-        {/* Premium Toggle */}
         <div className="inline-flex p-1.5 bg-gray-100 rounded-3xl border border-gray-200 shadow-inner">
-          {["activity", "event"].map((t) => (
+          {Object.keys(EVENT_TYPES).map((t) => (
             <button
               key={t}
               onClick={() => setType(t as any)}
@@ -103,16 +184,18 @@ export default function CreateEventPage() {
                   : "text-gray-400 hover:text-gray-600"
               }`}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {/* UI label logic: showcase internal key maps to "Event" label */}
+              {t === "showcase"
+                ? "Event"
+                : EVENT_TYPES[t as keyof typeof EVENT_TYPES].label}
             </button>
           ))}
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 pb-32 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Side: Form Fields */}
         <div className="lg:col-span-8 space-y-8">
-          {/* Card: Basic Info */}
+          {/* Section 1: Basics */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -150,7 +233,7 @@ export default function CreateEventPage() {
                 <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
                   Category
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {categories.map((cat) => (
                     <button
                       key={cat}
@@ -169,7 +252,7 @@ export default function CreateEventPage() {
             </div>
           </section>
 
-          {/* Card: Logistics */}
+          {/* Section 2: Logistics */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -208,32 +291,46 @@ export default function CreateEventPage() {
                   className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium"
                 />
               </div>
-              <div className="md:col-span-2 relative">
+
+              {/* Location with SearchBox integration */}
+              <div className="md:col-span-2 relative kivo-search-container">
                 <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
                   Location
                 </label>
                 <MapPin
-                  className="absolute left-5 top-[44px] text-gray-300"
+                  className="absolute left-5 top-[44px] text-gray-300 z-10"
                   size={20}
                 />
-                <input
-                  type="text"
-                  placeholder="Enter a venue name or street"
+                <SearchBox
+                  accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string}
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium"
+                  onChange={(val) => setLocation(val)}
+                  onRetrieve={handleRetrieve}
+                  placeholder="Enter a venue name or street"
+                  options={{
+                    proximity: [7.0354, 4.8156],
+                    country: "NG", // Fix: singular 'country'
+                  }}
+                  theme={{
+                    variables: {
+                      borderRadius: "24px",
+                      unit: "16px",
+                      border: "2px solid transparent",
+                      boxShadow: "none",
+                    },
+                  }}
                 />
                 <button
                   onClick={() => setShowMapPicker(true)}
                   className="mt-3 w-full py-3 bg-[#715800]/5 text-[#715800] font-black text-xs uppercase tracking-widest rounded-xl border border-[#715800]/20 hover:bg-[#715800]/10 transition"
                 >
-                  Pin on Map {locationCoords && "✓"}
+                  {locationCoords ? "Location Pinned ✓" : "Pin on Map"}
                 </button>
               </div>
             </div>
           </section>
 
-          {/* Card: Media */}
+          {/* Section 3: Visuals */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -280,14 +377,13 @@ export default function CreateEventPage() {
           </section>
         </div>
 
-        {/* Right Side: Sticky Settings & Submit */}
+        {/* Sidebar: Settings */}
         <div className="lg:col-span-4">
           <div className="sticky top-32 space-y-6">
             <section className="bg-gray-900 text-white rounded-[40px] p-8 shadow-2xl">
               <h4 className="font-black mb-6 text-sm uppercase tracking-widest text-[#715800]">
                 Settings
               </h4>
-
               <div className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 block">
@@ -306,7 +402,6 @@ export default function CreateEventPage() {
                     />
                   </div>
                 </div>
-
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3 block">
                     Fee (₦)
@@ -322,7 +417,6 @@ export default function CreateEventPage() {
                     />
                   </div>
                 </div>
-
                 <div className="pt-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -342,7 +436,6 @@ export default function CreateEventPage() {
                       />
                     </button>
                   </div>
-
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-black uppercase tracking-tighter">
@@ -363,39 +456,85 @@ export default function CreateEventPage() {
                   </div>
                 </div>
               </div>
-
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full mt-10 py-5 bg-[#715800] text-white font-black rounded-[28px] shadow-xl shadow-[#715800]/20 active:scale-95 transition-all flex items-center justify-center gap-2 group"
+                className="w-full mt-10 py-5 bg-[#715800] text-white font-black rounded-[28px] shadow-xl shadow-[#715800]/20 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-70"
               >
-                {submitting ? "Launching..." : "Broadcast Event"}
-                <ChevronRight
-                  size={18}
-                  className="group-hover:translate-x-1 transition-transform"
-                />
+                {submitting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Launching...
+                  </>
+                ) : isLoggedIn ? (
+                  "Broadcast Event"
+                ) : (
+                  "Sign in to Broadcast"
+                )}
+                {!submitting && (
+                  <ChevronRight
+                    size={18}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
+                )}
               </button>
             </section>
-
-            <div className="bg-blue-50 p-6 rounded-[32px] flex items-start gap-4 border border-blue-100">
-              <div className="bg-white p-2 rounded-xl text-blue-500 shadow-sm">
-                <Lock size={18} />
-              </div>
-              <div>
-                <p className="text-[11px] font-black text-[#715800] uppercase tracking-wider">
-                  Be the Plug
-                </p>
-                <p className="text-[10px] text-[#715800]/70 leading-relaxed font-medium mt-1">
-                  Top hosts get featured in our weekly "Scout's Choice" feed.
-                  Make this move count!
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </main>
 
-      {/* Integrated Map Picker Modal */}
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setShowAuthModal(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[40px] p-10 overflow-hidden shadow-2xl text-center"
+            >
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-black transition-colors"
+              >
+                <X size={24} />
+              </button>
+              <div className="w-20 h-20 bg-[#715800]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Lock size={32} className="text-[#715800]" />
+              </div>
+              <h2 className="text-3xl font-black tracking-tighter text-gray-900 mb-2">
+                Wait a sec!
+              </h2>
+              <p className="text-gray-500 font-medium text-sm leading-relaxed mb-8">
+                You need to be part of the community to broadcast moves in Port
+                Harcourt.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => router.push("/auth/signin")}
+                  className="w-full py-4 bg-black text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-900 transition-all flex items-center justify-center gap-2"
+                >
+                  <LogIn size={18} /> Sign In
+                </button>
+                <button
+                  onClick={() => router.push("/auth/signup")}
+                  className="w-full py-4 bg-gray-50 text-gray-900 border border-gray-200 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 transition-all"
+                >
+                  Create Account
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Map Picker Modal */}
       {showMapPicker && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 lg:p-12">
           <div

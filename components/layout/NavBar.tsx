@@ -1,28 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { HiMenu, HiX } from "react-icons/hi";
 import { motion, AnimatePresence } from "framer-motion";
-// Importing stable icons from the latest lucide-react
-import { Cpu, Bell, ChevronRight } from "lucide-react";
+import { Cpu, Bell, ChevronRight, LogOut } from "lucide-react";
 
 export default function Navbar() {
+  const router = useRouter();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    isMounted: false,
+  });
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const token = localStorage.getItem("token");
+      setAuthState({
+        isLoggedIn: !!token,
+        isMounted: true,
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("token");
+    setAuthState({ ...authState, isLoggedIn: false });
+    setMobileMenuOpen(false);
+    router.push("/auth/signin");
+  };
+
   const toggleMobileMenu = () => setMobileMenuOpen(!isMobileMenuOpen);
 
   const navLinks = [
-    { href: "/", label: "Home" },
-    { href: "/map", label: "Discover" },
-    { href: "/feed", label: "Feed" },
+    { href: "/map", label: "Map" },
+    { href: "/discover", label: "Discover" },
+
+    { href: "/create", label: "Add Event" },
     { href: "/chat", label: "AI Assistant" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact Us" },
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-[#FDFDFB]/90 backdrop-blur-xl border-b border-gray-100">
+    <nav className="fixed top-0 w-full z-[100] bg-[#FDFDFB]/90 backdrop-blur-xl border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex justify-between items-center">
         {/* LOGO SECTION */}
         <Link
@@ -53,46 +80,53 @@ export default function Navbar() {
 
         {/* RIGHT SIDE ACTIONS */}
         <div className="flex items-center gap-3 relative z-[60]">
-          {/* Notifications Button */}
-          <button className="hidden sm:flex w-10 h-10 rounded-2xl bg-gray-50 items-center justify-center hover:bg-[#715800]/5 transition-colors group">
-            <Bell
-              size={18}
-              className="text-gray-400 group-hover:text-[#715800]"
-            />
-          </button>
+          {authState.isMounted && (
+            <>
+              {authState.isLoggedIn ? (
+                <>
+                  <button
+                    onClick={handleSignOut}
+                    className="hidden sm:flex w-10 h-10 rounded-2xl bg-gray-50 items-center justify-center hover:bg-red-50 transition-colors group"
+                  >
+                    <LogOut
+                      size={18}
+                      className="text-gray-400 group-hover:text-red-500"
+                    />
+                  </button>
 
-          {/* Profile Link */}
-          <Link
-            href="/profile"
-            className="w-10 h-10 rounded-2xl overflow-hidden relative border-2 border-transparent hover:border-[#715800] transition-all"
-          >
-            <Image
-              src="/images/profile.jpg"
-              alt="User profile"
-              fill
-              className="object-cover"
-              sizes="40px"
-              priority
-            />
-          </Link>
+                  <Link
+                    href="/profile"
+                    className="w-10 h-10 rounded-2xl overflow-hidden relative border-2 border-transparent hover:border-[#715800] transition-all"
+                  >
+                    <Image
+                      src="/images/profile.jpg"
+                      alt="User profile"
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                      priority
+                    />
+                  </Link>
+                </>
+              ) : (
+                <div className="hidden md:flex items-center gap-2 ml-2">
+                  <Link
+                    href="/auth/signin"
+                    className="px-5 py-2.5 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:text-[#715800] transition-colors"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="px-6 py-2.5 bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-[#715800] transition-all shadow-lg shadow-black/5"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-2 ml-2">
-            <Link
-              href="/auth/signin"
-              className="px-5 py-2.5 text-gray-500 font-black text-[10px] uppercase tracking-widest hover:text-[#715800] transition-colors"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="px-6 py-2.5 bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-[#715800] transition-all shadow-lg shadow-black/5"
-            >
-              Sign Up
-            </Link>
-          </div>
-
-          {/* Mobile Menu Toggle Button */}
           <button
             className="md:hidden w-11 h-11 flex items-center justify-center text-2xl bg-gray-50 rounded-2xl text-[#715800] transition-transform active:scale-90"
             onClick={toggleMobileMenu}
@@ -102,7 +136,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* FULL-SCREEN MOBILE DRAWER */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
@@ -112,7 +145,6 @@ export default function Navbar() {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 top-0 left-0 w-full h-screen bg-white z-50 md:hidden flex flex-col"
           >
-            {/* Spacer for the fixed Header height */}
             <div className="h-24" />
 
             <div className="flex-1 overflow-y-auto px-8 pb-10">
@@ -142,25 +174,37 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* Mobile CTA/Auth Buttons */}
-              <div className="mt-12 space-y-4">
-                <Link
-                  href="/auth/signup"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg shadow-xl shadow-black/10 active:scale-95 transition-all"
-                >
-                  Create Account
-                </Link>
-                <Link
-                  href="/auth/signin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all"
-                >
-                  Sign In
-                </Link>
-              </div>
+              {authState.isMounted && (
+                <div className="mt-12 space-y-4">
+                  {!authState.isLoggedIn ? (
+                    <>
+                      <Link
+                        href="/auth/signup"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg shadow-xl shadow-black/10 active:scale-95 transition-all"
+                      >
+                        Create Account
+                      </Link>
+                      <Link
+                        href="/auth/signin"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all"
+                      >
+                        Sign In
+                      </Link>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full py-5 rounded-[24px] bg-red-50 text-red-500 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      <LogOut size={20} />
+                      Sign Out
+                    </button>
+                  )}
+                </div>
+              )}
 
-              {/* Drawer Bottom Info */}
               <div className="mt-16 pt-8 border-t border-gray-100 flex flex-col gap-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   Kivo Social Discovery Hub

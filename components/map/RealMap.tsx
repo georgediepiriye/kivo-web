@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-
 import {
   forwardRef,
   useEffect,
@@ -7,16 +7,22 @@ import {
   useRef,
   useState,
 } from "react";
-import mapboxgl, { Map as MapboxMap, Marker } from "mapbox-gl";
+import mapboxgl, {
+  Map as MapboxMap,
+  Marker,
+  GeolocateControl,
+} from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Event } from "@/lib/events";
+import { LocateFixed } from "lucide-react";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
-const statusColors: Record<Event["status"], string> = {
-  upcoming: "#10b981",
-  ongoing: "#facc15",
+const statusColors: Record<string, string> = {
+  upcoming: "#facc15",
+  ongoing: "#10b981",
   past: "#9ca3af",
+  default: "#715800",
 };
 
 export interface MapRef {
@@ -33,103 +39,194 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
   ({ onSelect, filteredEvents }, ref) => {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapboxMap | null>(null);
+    const geolocateControlRef = useRef<GeolocateControl | null>(null);
     const [isMapReady, setIsMapReady] = useState(false);
-    const userMarkerRef = useRef<Marker | null>(null);
-    const eventMarkersRef = useRef<Marker[]>([]);
+    const markersRef = useRef<{ [key: string]: Marker }>({});
+
+    // 1. Updated handleFlyToUser to be more aggressive
+    const handleFlyToUser = () => {
+      if (geolocateControlRef.current) {
+        geolocateControlRef.current.trigger();
+      }
+
+      // Secondary fallback to move the map even if the control is state-locked
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          mapRef.current?.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: 13,
+            essential: true,
+          });
+        },
+        undefined,
+        { enableHighAccuracy: true },
+      );
+    };
 
     useImperativeHandle(ref, () => ({
-      flyToUser: () => {
-        if (mapRef.current && userMarkerRef.current) {
-          const lngLat = userMarkerRef.current.getLngLat();
-          mapRef.current.flyTo({ center: [lngLat.lng, lngLat.lat], zoom: 14 });
-        }
-      },
+      flyToUser: handleFlyToUser,
       flyTo: (coords: { lat: number; lng: number }) => {
-        if (mapRef.current) {
-          mapRef.current.flyTo({
-            center: [coords.lng, coords.lat],
-            zoom: 15,
-            speed: 1.5,
-          });
-        }
+        mapRef.current?.flyTo({
+          center: [coords.lng, coords.lat],
+          zoom: 15.5,
+          speed: 1.2,
+        });
       },
     }));
 
-    // Initialize map
     useEffect(() => {
       if (!mapContainer.current || mapRef.current) return;
 
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [7.0354, 4.8156],
-        zoom: 12,
+        center: [7.035, 4.815], // Default PH
+        zoom: 11.5,
       });
+
+      const geolocate = new mapboxgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true,
+        showUserLocation: true, // Forces the Blue Dot
+      });
+
+      map.addControl(geolocate);
+      geolocateControlRef.current = geolocate;
 
       map.on("load", () => {
-        mapRef.current = map;
+        // 2. THIS IS THE KEY: Center on user immediately on load
+        geolocate.trigger();
 
-        // This is safe because it's inside an async callback from Mapbox
-        setIsMapReady(true);
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              if (!mapRef.current) return;
-              const { latitude, longitude } = position.coords;
-              const userEl = document.createElement("div");
-              userEl.className =
-                "w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg";
-              userMarkerRef.current = new mapboxgl.Marker(userEl)
-                .setLngLat([longitude, latitude])
-                .addTo(mapRef.current);
-            },
-            () => console.log("Location access denied"),
-          );
-        }
-      });
-
-      return () => {
-        map.remove();
-        mapRef.current = null;
-        setIsMapReady(false);
-      };
-    }, []);
-
-    // Sync Markers
-    useEffect(() => {
-      // Only run when the map is actually ready
-      if (!isMapReady || !mapRef.current) return;
-
-      eventMarkersRef.current.forEach((m) => m.remove());
-      eventMarkersRef.current = [];
-
-      filteredEvents.forEach((event) => {
-        const el = document.createElement("div");
-        el.className = "cursor-pointer transition-transform hover:scale-110";
-        el.innerHTML = `
-          <div style="background: ${statusColors[event.status]}; 
-               border-radius: 50%; width: 40px; height: 40px; 
-               display: flex; align-items: center; justify-content: center; 
-               box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 24px;">
-            ${event.emoji}
-          </div>
-        `;
-
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          onSelect(event);
+        map.addSource("events", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+          cluster: true,
+          clusterMaxZoom: 15,
+          clusterRadius: 40,
         });
 
-        const marker = new Marker(el)
-          .setLngLat([event.lng, event.lat])
-          .addTo(mapRef.current!);
+        // Layer definitions remain the same...
+        map.addLayer({
+          id: "clusters",
+          type: "circle",
+          source: "events",
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "rgba(30, 41, 59, 0.9)",
+            "circle-radius": [
+              "step",
+              ["get", "point_count"],
+              18,
+              5,
+              22,
+              15,
+              30,
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
 
-        eventMarkersRef.current.push(marker);
+        map.addLayer({
+          id: "cluster-count",
+          type: "symbol",
+          source: "events",
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count}",
+            "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
+            "text-size": 11,
+          },
+          paint: { "text-color": "#ffffff" },
+        });
+
+        map.addLayer({
+          id: "unclustered-point",
+          type: "circle",
+          source: "events",
+          filter: ["!", ["has", "point_count"]],
+          paint: { "circle-radius": 0 },
+        });
+
+        mapRef.current = map;
+        setIsMapReady(true);
       });
-    }, [filteredEvents, onSelect, isMapReady]);
 
-    return <div ref={mapContainer} className="w-full h-full" />;
+      return () => map.remove();
+    }, []);
+
+    useEffect(() => {
+      if (!isMapReady || !mapRef.current) return;
+      const map = mapRef.current;
+
+      const features = filteredEvents.map((e: any) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [e.lng, e.lat] },
+        properties: { id: e._id, ...e },
+      }));
+
+      (map.getSource("events") as mapboxgl.GeoJSONSource).setData({
+        type: "FeatureCollection",
+        features: features as any,
+      });
+
+      const updateMarkers = () => {
+        const newMarkers: { [key: string]: Marker } = {};
+        const unclusteredFeatures = map.queryRenderedFeatures({
+          layers: ["unclustered-point"],
+        });
+
+        unclusteredFeatures.forEach((feature) => {
+          const props = feature.properties as any;
+          const id = props.id;
+          const coords = (feature.geometry as any).coordinates;
+
+          if (!markersRef.current[id]) {
+            const el = document.createElement("div");
+            const status = props.timeStatus || "upcoming";
+            el.className = `relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-125`;
+            const labelHtml =
+              status === "ongoing"
+                ? `<span class="absolute -top-7 whitespace-nowrap bg-green-400 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-bounce">LIVE</span>`
+                : "";
+            el.innerHTML = `${labelHtml}<div class="w-4 h-4 rounded-full border-2 border-white shadow-md ${status === "ongoing" ? "animate-pulse" : ""}" style="background: ${statusColors[status] || statusColors.default}"></div>`;
+            el.onclick = (e) => {
+              e.stopPropagation();
+              onSelect(props);
+            };
+            newMarkers[id] = new mapboxgl.Marker(el)
+              .setLngLat(coords)
+              .addTo(map);
+          } else {
+            newMarkers[id] = markersRef.current[id];
+          }
+        });
+
+        Object.keys(markersRef.current).forEach((id) => {
+          if (!newMarkers[id]) markersRef.current[id].remove();
+        });
+        markersRef.current = newMarkers;
+      };
+
+      map.on("render", updateMarkers);
+      return () => {
+        map.off("render", updateMarkers);
+      };
+    }, [filteredEvents, isMapReady]);
+
+    return (
+      <div className="relative w-full h-full">
+        <div ref={mapContainer} className="w-full h-full absolute inset-0" />
+
+        <button
+          onClick={handleFlyToUser}
+          className="absolute bottom-[280px] md:bottom-12 right-6 z-[60] bg-white p-4 rounded-full shadow-2xl border border-gray-100 active:scale-90 transition-all text-blue-600 hover:bg-gray-50 flex items-center justify-center"
+        >
+          <LocateFixed size={24} strokeWidth={2.5} />
+        </button>
+      </div>
+    );
   },
 );
 
