@@ -2,7 +2,15 @@
 "use client";
 import { useRef, useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, X, Loader2, LogOut, ChevronRight } from "lucide-react";
+import {
+  Heart,
+  X,
+  Loader2,
+  LogOut,
+  ChevronRight,
+  LogIn,
+  UserPlus,
+} from "lucide-react"; // Added Icons
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/layout/NavBar";
@@ -47,6 +55,9 @@ export default function MapPage() {
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
 
+  // Track auth state locally
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   const mapRef = useRef<MapRef>(null);
   const userLocation = { lat: 4.819, lng: 7.038 };
 
@@ -60,6 +71,10 @@ export default function MapPage() {
   ];
 
   useEffect(() => {
+    // Check auth on mount
+    const token = localStorage.getItem("token");
+    setIsLoggedIn(!!token);
+
     const fetchEvents = async () => {
       try {
         setLoading(true);
@@ -91,7 +106,7 @@ export default function MapPage() {
   }, []);
 
   const filteredEvents = useMemo(() => {
-    const now = new Date().getTime(); // Convert to timestamp for reliable comparison
+    const now = new Date().getTime();
 
     return events
       .map((event) => {
@@ -115,7 +130,6 @@ export default function MapPage() {
           .toLowerCase()
           .includes(search.toLowerCase());
 
-        // Strict status check
         const matchesFilter =
           activeFilter === "all" ? true : event.timeStatus === activeFilter;
 
@@ -132,6 +146,7 @@ export default function MapPage() {
 
   const handleSignOut = () => {
     localStorage.removeItem("token");
+    setIsLoggedIn(false); // Update state immediately
     setMenuOpen(false);
     router.push("/auth/signin");
   };
@@ -172,7 +187,6 @@ export default function MapPage() {
         )}
       </AnimatePresence>
 
-      {/* SYNCED MOBILE MENU OVERLAY */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -219,13 +233,33 @@ export default function MapPage() {
                 ))}
               </div>
 
+              {/* DYNAMIC AUTH SECTION */}
               <div className="mt-12 space-y-4">
-                <button
-                  onClick={handleSignOut}
-                  className="w-full py-5 rounded-[24px] bg-red-50 text-red-500 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-3"
-                >
-                  <LogOut size={20} /> Sign Out
-                </button>
+                {isLoggedIn ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full py-5 rounded-[24px] bg-red-50 text-red-500 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-3"
+                  >
+                    <LogOut size={20} /> Sign Out
+                  </button>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth/signup"
+                      onClick={() => setMenuOpen(false)}
+                      className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg shadow-xl shadow-black/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <UserPlus size={20} /> Create Account
+                    </Link>
+                    <Link
+                      href="/auth/signin"
+                      onClick={() => setMenuOpen(false)}
+                      className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                      <LogIn size={20} /> Sign In
+                    </Link>
+                  </>
+                )}
               </div>
 
               <div className="mt-16 pt-8 border-t border-gray-100 flex flex-col gap-2">
