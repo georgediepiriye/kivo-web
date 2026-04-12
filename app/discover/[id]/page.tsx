@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+
 import {
   ArrowLeft,
   MapPin,
   Calendar,
-  Users,
   MessageCircle,
   Share2,
   Info,

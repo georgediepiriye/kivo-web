@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react/no-unescaped-entities */
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -18,6 +18,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import Image from "next/image"; // Added Image import
 import { EVENT_CATEGORIES } from "@/lib/categories";
 import EventCard from "@/components/cards/EventCard";
 import Navbar from "@/components/layout/NavBar";
@@ -187,7 +188,6 @@ export default function DiscoverPage() {
     });
   }, [events, search, activeCat, dist, dateFilter, priceFilter, statusFilter]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const current = filtered.slice(
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE,
@@ -501,11 +501,12 @@ export default function DiscoverPage() {
                   onClick={() => router.push(`/discover/${e.id}`)}
                   className="bg-white p-5 rounded-[28px] border border-gray-100 flex items-center gap-4 hover:shadow-xl transition-all group cursor-pointer"
                 >
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0">
-                    <img
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                    <Image
                       src={e.image}
+                      fill
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                      alt=""
+                      alt={e.title}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -549,11 +550,12 @@ export default function DiscoverPage() {
                     onClick={() => router.push(`/discover/${e.id}`)}
                     className="bg-white/5 border border-white/10 backdrop-blur-md p-5 rounded-[28px] flex items-center gap-5 cursor-pointer hover:bg-white/10 transition-colors"
                   >
-                    <div className="w-16 h-16 rounded-xl bg-gray-800 overflow-hidden shrink-0 border border-white/10">
-                      <img
+                    <div className="w-16 h-16 rounded-xl bg-gray-800 overflow-hidden shrink-0 border border-white/10 relative">
+                      <Image
                         src={e.image}
+                        fill
                         className="w-full h-full object-cover opacity-80"
-                        alt=""
+                        alt={e.title}
                       />
                     </div>
                     <div className="min-w-0 flex-1">

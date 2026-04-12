@@ -13,6 +13,7 @@ import {
 } from "lucide-react"; // Added Icons
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image"; // Added Image import
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import RealMap, { MapRef } from "@/components/map/RealMap";
@@ -375,11 +376,14 @@ export default function MapPage() {
                     className="flex-shrink-0 w-[280px] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm cursor-pointer"
                   >
                     <div className="flex gap-3">
-                      <img
-                        src={event.image}
-                        alt=""
-                        className="w-20 h-20 rounded-xl object-cover"
-                      />
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        <Image
+                          src={event.image}
+                          alt={event.title}
+                          fill
+                          className="rounded-xl object-cover"
+                        />
+                      </div>
                       <div className="flex-1 overflow-hidden">
                         <h4 className="font-bold text-sm text-gray-900 truncate">
                           {event.title}
@@ -421,11 +425,14 @@ export default function MapPage() {
               />
               <div className="flex items-center justify-between mb-6 bg-gray-50 p-3 rounded-3xl border border-gray-100">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={(selected as any).organizerImage}
-                    className="h-10 w-10 rounded-full object-cover"
-                    alt=""
-                  />
+                  <div className="relative h-10 w-10">
+                    <Image
+                      src={(selected as any).organizerImage}
+                      alt="Organizer"
+                      fill
+                      className="rounded-full object-cover"
+                    />
+                  </div>
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase leading-none mb-1">
                       Posted By
@@ -475,11 +482,15 @@ export default function MapPage() {
                   </button>
                 </div>
               </div>
-              <img
-                src={selected.image}
-                className="w-full h-56 object-cover rounded-[28px] mb-6 shadow-sm"
-                alt=""
-              />
+              <div className="relative w-full h-56 mb-6">
+                <Image
+                  src={selected.image}
+                  alt={selected.title}
+                  fill
+                  priority
+                  className="object-cover rounded-[28px] shadow-sm"
+                />
+              </div>
               <div className="flex gap-4 mb-6">
                 <div className="flex-1 bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
                   <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
