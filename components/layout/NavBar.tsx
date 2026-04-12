@@ -84,6 +84,10 @@ export default function Navbar() {
             <>
               {authState.isLoggedIn ? (
                 <>
+                  <Bell
+                    size={18}
+                    className="text-gray-400 group-hover:text-red-500"
+                  />
                   <button
                     onClick={handleSignOut}
                     className="hidden sm:flex w-10 h-10 rounded-2xl bg-gray-50 items-center justify-center hover:bg-red-50 transition-colors group"

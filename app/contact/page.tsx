@@ -11,7 +11,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { LuFacebook, LuInstagram, LuX } from "react-icons/lu";
-import { FaInstagram } from "react-icons/fa";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import Footer from "@/components/layout/Footer";

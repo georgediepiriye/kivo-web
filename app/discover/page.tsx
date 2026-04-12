@@ -96,6 +96,7 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   const [dist, setDist] = useState(25);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [page, setPage] = useState(1);
   const [dateFilter, setDateFilter] = useState("");
   const [priceFilter, setPriceFilter] = useState<"all" | "free" | "paid">(
