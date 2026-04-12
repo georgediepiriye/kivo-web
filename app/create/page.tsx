@@ -10,7 +10,17 @@ import MobileNav from "@/components/layout/MobileNav";
 import Footer from "@/components/layout/Footer";
 import CreateEventMap, { MapRef } from "@/components/map/CreateEventMap";
 import toast, { Toaster } from "react-hot-toast";
-import { SearchBox } from "@mapbox/search-js-react";
+import dynamic from "next/dynamic";
+
+const SearchBox = dynamic(
+  () => import("@mapbox/search-js-react").then((m) => m.SearchBox),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-14 w-full bg-gray-100 animate-pulse rounded-[24px]" />
+    ),
+  },
+);
 
 import {
   Calendar,
@@ -39,8 +49,13 @@ export default function CreateEventPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+
+  // Updated Date/Time states
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+
   const [location, setLocation] = useState("");
   const [locationCoords, setLocationCoords] = useState<{
     lat: number;
@@ -52,7 +67,6 @@ export default function CreateEventPage() {
   const [allowAnonymous, setAllowAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Note: type "showcase" is internally used for "Event" UI
   const [type, setType] = useState<"activity" | "showcase">("activity");
   const [fee, setFee] = useState<number>(0);
   const [maxParticipants, setMaxParticipants] = useState<number | "">("");
@@ -100,7 +114,16 @@ export default function CreateEventPage() {
       return;
     }
 
-    if (!title || !description || !category || !date || !time || !location) {
+    if (
+      !title ||
+      !description ||
+      !category ||
+      !startDate ||
+      !startTime ||
+      !endDate ||
+      !endTime ||
+      !location
+    ) {
       return toast.error("Please fill in all basic fields.");
     }
 
@@ -121,8 +144,9 @@ export default function CreateEventPage() {
         title,
         description,
         category: categoryKey,
-        type, // Sends "showcase" or "activity" to API
-        date: `${date}T${time}`,
+        type,
+        startDate: `${startDate}T${startTime}`,
+        endDate: `${endDate}T${endTime}`,
         lng: locationCoords.lng,
         lat: locationCoords.lat,
         address: location,
@@ -132,9 +156,8 @@ export default function CreateEventPage() {
         price: fee,
         isFree: fee === 0,
         capacity: maxParticipants || null,
+        organizerType: "individual", // Match schema default
       };
-
-      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/events`, {
         method: "POST",
@@ -184,7 +207,6 @@ export default function CreateEventPage() {
                   : "text-gray-400 hover:text-gray-600"
               }`}
             >
-              {/* UI label logic: showcase internal key maps to "Event" label */}
               {t === "showcase"
                 ? "Event"
                 : EVENT_TYPES[t as keyof typeof EVENT_TYPES].label}
@@ -195,7 +217,6 @@ export default function CreateEventPage() {
 
       <main className="max-w-4xl mx-auto px-6 pb-32 grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
-          {/* Section 1: Basics */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -252,7 +273,6 @@ export default function CreateEventPage() {
             </div>
           </section>
 
-          {/* Section 2: Logistics */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -260,40 +280,104 @@ export default function CreateEventPage() {
               </div>
               Logistics
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="relative">
-                <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
-                  Date
-                </label>
-                <Calendar
-                  className="absolute right-5 top-[44px] text-gray-300"
-                  size={20}
-                />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium"
-                />
-              </div>
-              <div className="relative">
-                <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
-                  Time
-                </label>
-                <Clock
-                  className="absolute right-5 top-[44px] text-gray-300"
-                  size={20}
-                />
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium"
-                />
+            <div className="space-y-8">
+              {/* Start Date & Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div
+                  className="relative cursor-pointer"
+                  onClick={(e) =>
+                    (
+                      e.currentTarget.querySelector("input") as any
+                    )?.showPicker()
+                  }
+                >
+                  <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
+                    Starts
+                  </label>
+                  <Calendar
+                    className="absolute right-5 top-[44px] text-gray-300 pointer-events-none"
+                    size={20}
+                  />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium cursor-pointer"
+                  />
+                </div>
+                <div
+                  className="relative cursor-pointer"
+                  onClick={(e) =>
+                    (
+                      e.currentTarget.querySelector("input") as any
+                    )?.showPicker()
+                  }
+                >
+                  <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
+                    At
+                  </label>
+                  <Clock
+                    className="absolute right-5 top-[44px] text-gray-300 pointer-events-none"
+                    size={20}
+                  />
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium cursor-pointer"
+                  />
+                </div>
               </div>
 
-              {/* Location with SearchBox integration */}
-              <div className="md:col-span-2 relative kivo-search-container">
+              {/* End Date & Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div
+                  className="relative cursor-pointer"
+                  onClick={(e) =>
+                    (
+                      e.currentTarget.querySelector("input") as any
+                    )?.showPicker()
+                  }
+                >
+                  <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
+                    Ends
+                  </label>
+                  <Calendar
+                    className="absolute right-5 top-[44px] text-gray-300 pointer-events-none"
+                    size={20}
+                  />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium cursor-pointer"
+                  />
+                </div>
+                <div
+                  className="relative cursor-pointer"
+                  onClick={(e) =>
+                    (
+                      e.currentTarget.querySelector("input") as any
+                    )?.showPicker()
+                  }
+                >
+                  <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
+                    At
+                  </label>
+                  <Clock
+                    className="absolute right-5 top-[44px] text-gray-300 pointer-events-none"
+                    size={20}
+                  />
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="relative kivo-search-container">
                 <label className="text-[11px] font-black uppercase text-gray-400 tracking-wider ml-1 mb-2 block">
                   Location
                 </label>
@@ -307,10 +391,7 @@ export default function CreateEventPage() {
                   onChange={(val) => setLocation(val)}
                   onRetrieve={handleRetrieve}
                   placeholder="Enter a venue name or street"
-                  options={{
-                    proximity: [7.0354, 4.8156],
-                    country: "NG", // Fix: singular 'country'
-                  }}
+                  options={{ proximity: [7.0354, 4.8156], country: "NG" }}
                   theme={{
                     variables: {
                       borderRadius: "24px",
@@ -330,7 +411,6 @@ export default function CreateEventPage() {
             </div>
           </section>
 
-          {/* Section 3: Visuals */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-lg font-black mb-6 flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800]">
@@ -377,7 +457,6 @@ export default function CreateEventPage() {
           </section>
         </div>
 
-        {/* Sidebar: Settings */}
         <div className="lg:col-span-4">
           <div className="sticky top-32 space-y-6">
             <section className="bg-gray-900 text-white rounded-[40px] p-8 shadow-2xl">
@@ -482,7 +561,6 @@ export default function CreateEventPage() {
         </div>
       </main>
 
-      {/* Auth Modal */}
       <AnimatePresence>
         {showAuthModal && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
@@ -534,7 +612,6 @@ export default function CreateEventPage() {
         )}
       </AnimatePresence>
 
-      {/* Map Picker Modal */}
       {showMapPicker && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 lg:p-12">
           <div
