@@ -163,13 +163,35 @@ export default function MapPage() {
   // Helper to format date and time
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return {
-      date: date.toLocaleDateString("en-US", {
+    const now = new Date();
+
+    // Normalize dates to midnight for accurate day comparison
+    const eventDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    let dateDisplay;
+    if (diffDays === 0) {
+      dateDisplay = "Today";
+    } else if (diffDays === 1) {
+      dateDisplay = "Tomorrow";
+    } else {
+      dateDisplay = date.toLocaleDateString("en-US", {
         weekday: "short",
         month: "short",
         day: "numeric",
         year: "numeric",
-      }),
+      });
+    }
+
+    return {
+      date: dateDisplay,
       time: date.toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
@@ -205,70 +227,75 @@ export default function MapPage() {
       <AnimatePresence>
         {menuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 w-full h-screen bg-white z-[150] md:hidden flex flex-col"
+            initial={{ opacity: 0, x: "100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 w-full h-full bg-white z-[150] md:hidden overflow-y-auto"
           >
-            <div className="h-24 px-8 flex items-center justify-between">
-              <span className="text-2xl font-black text-[#715800] tracking-tighter">
-                Kivo
-              </span>
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="w-11 h-11 flex items-center justify-center bg-gray-50 rounded-2xl text-[#715800]"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-8 pb-10">
-              <div className="flex flex-col gap-2">
-                {navLinks.map((link, i) => (
-                  <motion.div
-                    key={link.href}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <Link
-                      href={link.href}
-                      className="group flex items-center justify-between py-5 border-b border-gray-50"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <span className="text-4xl font-black tracking-tighter text-gray-900">
-                        {link.label}
-                      </span>
-                      <ChevronRight className="text-gray-300" />
-                    </Link>
-                  </motion.div>
-                ))}
+            <div className="min-h-screen flex flex-col pb-24">
+              <div className="h-24 px-8 flex items-center justify-between shrink-0">
+                <span className="text-2xl font-black text-[#715800] tracking-tighter">
+                  Kivo
+                </span>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="w-11 h-11 flex items-center justify-center bg-gray-50 rounded-2xl text-[#715800]"
+                >
+                  <X size={24} />
+                </button>
               </div>
-              <div className="mt-12 space-y-4">
-                {isLoggedIn ? (
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full py-5 rounded-[24px] bg-red-50 text-red-500 font-black flex items-center justify-center gap-3"
-                  >
-                    <LogOut size={20} /> Sign Out
-                  </button>
-                ) : (
-                  <>
-                    <Link
-                      href="/auth/signup"
-                      onClick={() => setMenuOpen(false)}
-                      className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+
+              <div className="px-8 flex-1">
+                <div className="flex flex-col gap-1">
+                  {navLinks.map((link, i) => (
+                    <motion.div
+                      key={link.href}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
                     >
-                      <UserPlus size={20} /> Create Account
-                    </Link>
-                    <Link
-                      href="/auth/signin"
-                      onClick={() => setMenuOpen(false)}
-                      className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                      <Link
+                        href={link.href}
+                        className="group flex items-center justify-between py-5 border-b border-gray-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <span className="text-4xl font-black tracking-tighter text-gray-900">
+                          {link.label}
+                        </span>
+                        <ChevronRight className="text-gray-300" />
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+
+                <div className="mt-12 space-y-4 pb-10">
+                  {isLoggedIn ? (
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full py-5 rounded-[24px] bg-red-50 text-red-500 font-black flex items-center justify-center gap-3"
                     >
-                      <LogIn size={20} /> Sign In
-                    </Link>
-                  </>
-                )}
+                      <LogOut size={20} /> Sign Out
+                    </button>
+                  ) : (
+                    <>
+                      <Link
+                        href="/auth/signup"
+                        onClick={() => setMenuOpen(false)}
+                        className="block w-full py-5 rounded-[24px] bg-black text-white font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <UserPlus size={20} /> Create Account
+                      </Link>
+                      <Link
+                        href="/auth/signin"
+                        onClick={() => setMenuOpen(false)}
+                        className="block w-full py-5 rounded-[24px] bg-gray-50 text-gray-900 font-black text-center text-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <LogIn size={20} /> Sign In
+                      </Link>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -312,7 +339,7 @@ export default function MapPage() {
           </div>
           <button
             onClick={() => setMenuOpen(true)}
-            className="w-9 h-9 flex items-center rounded-xl bg-white/80 justify-center text-[#715800] border border-gray-100 shadow-sm"
+            className="w-9 h-9 flex items-center rounded-xl bg-white/80 justify-center text-[#715800] border border-gray-100 shadow-sm font-black"
           >
             ☰
           </button>

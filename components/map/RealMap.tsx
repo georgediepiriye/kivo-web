@@ -18,10 +18,10 @@ import { Event } from "@/lib/events";
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
 const statusColors: Record<string, string> = {
-  upcoming: "#facc15",
-  ongoing: "#10b981",
-  past: "#9ca3af",
-  default: "#715800",
+  upcoming: "#EAB308", // A slightly deeper Gold (Tailwind Yellow-600) for better legibility
+  ongoing: "#059669", // A rich Emerald Green; feels more "active" than standard green
+  past: "#6B7280", // Medium Gray; recedes into the background so users focus on current events
+  default: "#715800", // Your brand Kivo Bronze
 };
 
 export interface MapRef {
