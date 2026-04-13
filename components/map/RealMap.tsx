@@ -14,7 +14,6 @@ import mapboxgl, {
 } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Event } from "@/lib/events";
-import { LocateFixed } from "lucide-react";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
@@ -43,13 +42,11 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
     const [isMapReady, setIsMapReady] = useState(false);
     const markersRef = useRef<{ [key: string]: Marker }>({});
 
-    // 1. Updated handleFlyToUser to be more aggressive
     const handleFlyToUser = () => {
       if (geolocateControlRef.current) {
         geolocateControlRef.current.trigger();
       }
 
-      // Secondary fallback to move the map even if the control is state-locked
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           mapRef.current?.flyTo({
@@ -80,7 +77,7 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11",
-        center: [7.035, 4.815], // Default PH
+        center: [7.035, 4.815],
         zoom: 11.5,
       });
 
@@ -88,14 +85,13 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
         showUserHeading: true,
-        showUserLocation: true, // Forces the Blue Dot
+        showUserLocation: true,
       });
 
       map.addControl(geolocate);
       geolocateControlRef.current = geolocate;
 
       map.on("load", () => {
-        // 2. THIS IS THE KEY: Center on user immediately on load
         geolocate.trigger();
 
         map.addSource("events", {
@@ -106,7 +102,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           clusterRadius: 40,
         });
 
-        // Layer definitions remain the same...
         map.addLayer({
           id: "clusters",
           type: "circle",
@@ -217,14 +212,8 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
     return (
       <div className="relative w-full h-full">
+        {/* DUPLICATE BUTTON REMOVED FROM HERE */}
         <div ref={mapContainer} className="w-full h-full absolute inset-0" />
-
-        <button
-          onClick={handleFlyToUser}
-          className="absolute bottom-[280px] md:bottom-12 right-6 z-[60] bg-white p-4 rounded-full shadow-2xl border border-gray-100 active:scale-90 transition-all text-blue-600 hover:bg-gray-50 flex items-center justify-center"
-        >
-          <LocateFixed size={24} strokeWidth={2.5} />
-        </button>
       </div>
     );
   },

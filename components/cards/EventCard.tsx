@@ -1,5 +1,6 @@
 import { EVENT_CATEGORIES } from "@/lib/categories";
 import Image from "next/image";
+import { Clock, MapPin } from "lucide-react"; // Import Lucide icons
 
 export type Props = {
   title: string;
@@ -10,7 +11,6 @@ export type Props = {
   distance?: string;
   buttonText: string;
   badge?: string;
-  // ✅ UPDATED: Matching the data from your events file
   attendees: number;
   participantImages: string[];
 };
@@ -63,16 +63,15 @@ export default function EventCard({
         </div>
 
         <div className="flex flex-col gap-1.5 text-sm text-gray-500 mb-6">
+          {/* TIME SECTION */}
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] opacity-70">
-              schedule
-            </span>
+            <Clock size={16} className="text-[#715800] opacity-80" />
             <span className="font-medium">{time}</span>
           </div>
+
+          {/* LOCATION SECTION */}
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] opacity-70">
-              location_on
-            </span>
+            <MapPin size={16} className="text-[#715800] opacity-80" />
             <span className="font-medium line-clamp-1">
               {location}
               {distance && ` • ${distance}`}
