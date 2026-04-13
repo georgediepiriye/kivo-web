@@ -13,6 +13,8 @@ import {
   UserPlus,
   Search,
   LocateFixed,
+  Calendar,
+  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -156,6 +158,24 @@ export default function MapPage() {
         });
       });
     }
+  };
+
+  // Helper to format date and time
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return {
+      date: date.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      time: date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }),
+    };
   };
 
   return (
@@ -433,6 +453,36 @@ export default function MapPage() {
                   sizes="(max-width: 768px) 100vw, 800px"
                   className="object-cover rounded-[28px] shadow-sm"
                 />
+              </div>
+
+              {/* DATE AND TIME SECTION */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <Calendar size={18} className="text-[#715800]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase">
+                      Date
+                    </p>
+                    <p className="text-xs font-bold text-gray-900">
+                      {formatDateTime(selected.startDate).date}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                    <Clock size={18} className="text-[#715800]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase">
+                      Time
+                    </p>
+                    <p className="text-xs font-bold text-gray-900">
+                      {formatDateTime(selected.startDate).time}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-4 mb-6">

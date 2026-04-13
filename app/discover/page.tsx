@@ -18,7 +18,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import Image from "next/image"; // Added Image import
+import Image from "next/image";
 import { EVENT_CATEGORIES } from "@/lib/categories";
 import EventCard from "@/components/cards/EventCard";
 import Navbar from "@/components/layout/NavBar";
@@ -73,16 +73,20 @@ const getDateRange = (filter: string) => {
   return null;
 };
 
-// HELPER: Format Date and Time
+// HELPER: Format Date and Time for high readability
 const formatEventTime = (dateStr: string) => {
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-NG", {
+  const datePart = d.toLocaleDateString("en-US", {
     weekday: "short",
     day: "numeric",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
   });
+  const timePart = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart} • ${timePart}`;
 };
 
 export default function DiscoverPage() {
@@ -96,8 +100,7 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   const [dist, setDist] = useState(25);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [page, setPage] = useState(1);
+  const [page] = useState(1);
   const [dateFilter, setDateFilter] = useState("");
   const [priceFilter, setPriceFilter] = useState<"all" | "free" | "paid">(
     "all",
@@ -434,7 +437,7 @@ export default function DiscoverPage() {
                   >
                     <EventCard
                       {...e}
-                      organizerName={e.organizerName}
+                      organizerName={`Posted by ${e.organizerName}`}
                       organizerImage={e.organizerImage}
                       location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away`}
                       time={formatEventTime(e.startDate)}
@@ -468,7 +471,7 @@ export default function DiscoverPage() {
                 <EventCard
                   {...e}
                   category={e.category as any}
-                  organizerName={e.organizerName}
+                  organizerName={`Posted by ${e.organizerName}`}
                   organizerImage={e.organizerImage}
                   time={formatEventTime(e.startDate)}
                   location="Port Harcourt"
@@ -514,8 +517,11 @@ export default function DiscoverPage() {
                     <h4 className="font-black text-gray-900 truncate mb-1 md:text-lg">
                       {e.title}
                     </h4>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                       {formatEventTime(e.startDate)}
+                    </p>
+                    <p className="text-[9px] font-bold text-[#715800] uppercase tracking-wider">
+                      Posted by {e.organizerName}
                     </p>
                   </div>
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-[#715800] group-hover:text-white transition-all">
@@ -563,10 +569,15 @@ export default function DiscoverPage() {
                       <h4 className="font-black text-white text-lg tracking-tight truncate">
                         {e.title}
                       </h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Sparkles size={12} className="text-[#715800]" />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          {formatEventTime(e.startDate)}
+                      <div className="flex flex-col gap-1 mt-1">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={12} className="text-[#715800]" />
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            {formatEventTime(e.startDate)}
+                          </span>
+                        </div>
+                        <span className="text-[9px] font-bold text-[#715800]/80 uppercase tracking-wider ml-5">
+                          Posted by {e.organizerName}
                         </span>
                       </div>
                     </div>
