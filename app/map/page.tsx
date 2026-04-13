@@ -15,6 +15,7 @@ import {
   LocateFixed,
   Calendar,
   Clock,
+  AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -57,12 +58,19 @@ export default function MapPage() {
   });
 
   // TanStack Query for Data Fetching & Caching
-  const { data: events = [], isLoading } = useQuery({
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/V1/events?limit=100`,
       );
+
+      if (!response.ok) throw new Error("Network error");
       const result = await response.json();
 
       if (result.status !== "success") throw new Error("Fetch failed");
@@ -78,7 +86,8 @@ export default function MapPage() {
           `https://api.dicebear.com/7.x/avataaars/svg?seed=${e._id}`,
       }));
     },
-    staleTime: 1000 * 60 * 5, // Cache stays fresh for 5 minutes
+    retry: 3,
+    staleTime: 1000 * 60 * 5,
   });
 
   const navLinks = useMemo(
@@ -241,6 +250,33 @@ export default function MapPage() {
               Kivo
             </div>
             <Loader2 className="animate-spin text-gray-200" size={32} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isError && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[250] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+              <AlertCircle className="text-red-500" size={40} />
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2 italic tracking-tighter">
+              Connection Lost
+            </h3>
+            <p className="text-gray-500 text-sm mb-8 max-w-[240px]">
+              We couldn&apos;t reach Kivo. Check your internet and let&apos;s
+              try that again.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="px-8 py-4 bg-black text-white rounded-[24px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all shadow-xl"
+            >
+              Retry Connection
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
