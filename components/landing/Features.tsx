@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import Image from "next/image";
+import { MapPin, Sparkles, PlusCircle } from "lucide-react";
 
 export default function Features() {
   return (
@@ -20,9 +21,7 @@ export default function Features() {
         <div className="md:col-span-8 bg-surface-container-lowest rounded-2xl p-10 flex flex-col justify-between min-h-[400px] editorial-shadow group">
           <div className="max-w-md">
             <div className="w-14 h-14 bg-primary-container rounded-2xl flex items-center justify-center text-on-primary-container mb-6 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined text-3xl">
-                location_on
-              </span>
+              <MapPin size={32} strokeWidth={2.5} />
             </div>
             <h3 className="text-3xl font-black font-headline mb-4">
               See what’s happening nearby
@@ -47,9 +46,7 @@ export default function Features() {
         <div className="md:col-span-4 bg-secondary-container rounded-2xl p-10 flex flex-col justify-between editorial-shadow border-b-8 border-secondary group">
           <div>
             <div className="w-14 h-14 bg-surface-container-lowest rounded-2xl flex items-center justify-center text-secondary mb-6 group-hover:rotate-12 transition-transform">
-              <span className="material-symbols-outlined text-3xl">
-                auto_awesome
-              </span>
+              <Sparkles size={32} strokeWidth={2.5} />
             </div>
             <h3 className="text-2xl font-black font-headline mb-4 text-on-secondary-container">
               Personalized recommendations
@@ -65,9 +62,7 @@ export default function Features() {
         <div className="md:col-span-4 bg-primary-container rounded-2xl p-10 flex flex-col justify-between editorial-shadow border-b-8 border-primary group">
           <div>
             <div className="w-14 h-14 bg-surface-container-lowest rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:-translate-y-2 transition-transform">
-              <span className="material-symbols-outlined text-3xl">
-                add_circle
-              </span>
+              <PlusCircle size={32} strokeWidth={2.5} />
             </div>
             <h3 className="text-2xl font-black font-headline mb-4 text-on-primary-container">
               Create and share activities

@@ -180,7 +180,7 @@ export default function SignUpPage() {
                   onChange={handleChange}
                   type="text"
                   placeholder="John"
-                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-sm"
+                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-base"
                 />
               </div>
               <div>
@@ -194,7 +194,7 @@ export default function SignUpPage() {
                   onChange={handleChange}
                   type="text"
                   placeholder="Doe"
-                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-sm"
+                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-base"
                 />
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function SignUpPage() {
                 onChange={handleChange}
                 type="email"
                 placeholder="name@example.com"
-                className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-sm"
+                className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-base"
               />
             </div>
 
@@ -226,7 +226,7 @@ export default function SignUpPage() {
                   onChange={handleChange}
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a password"
-                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-sm pr-12"
+                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] outline-none transition-all font-medium text-base pr-12"
                 />
                 <button
                   type="button"

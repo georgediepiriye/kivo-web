@@ -170,7 +170,7 @@ export default function SignInPage() {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="name@example.com"
-                className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] focus:ring-4 focus:ring-[#715800]/5 outline-none transition-all font-medium text-sm"
+                className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] focus:ring-4 focus:ring-[#715800]/5 outline-none transition-all font-medium text-base"
               />
             </div>
 
@@ -195,7 +195,7 @@ export default function SignInPage() {
                     setFormData({ ...formData, password: e.target.value })
                   }
                   placeholder="••••••••"
-                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] focus:ring-4 focus:ring-[#715800]/5 outline-none transition-all font-medium text-sm pr-12"
+                  className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#715800] focus:ring-4 focus:ring-[#715800]/5 outline-none transition-all font-medium text-base pr-12"
                 />
                 <button
                   type="button"

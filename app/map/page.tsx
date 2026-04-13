@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import Navbar from "@/components/layout/NavBar";
+import Navbar from "@/components/layout/NavBar"; // Fixed casing: NavBar
 import MobileNav from "@/components/layout/MobileNav";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import { Event } from "@/lib/events";
@@ -146,26 +146,47 @@ export default function MapPage() {
     });
   }, []);
 
-  const handleLocateUser = () => {
-    if (mapRef.current && mapRef.current.flyToUser) {
-      mapRef.current.flyToUser();
-    } else if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        mapRef.current?.flyTo?.({
-          center: [position.coords.longitude, position.coords.latitude],
-          zoom: 14,
-          essential: true,
-        });
-      });
-    }
-  };
+  const handleLocateUser = useCallback(() => {
+    const saved = localStorage.getItem("user_coords");
 
-  // Helper to format date and time
+    if (saved) {
+      try {
+        const coords = JSON.parse(saved);
+        if (
+          coords &&
+          typeof coords.lat === "number" &&
+          typeof coords.lng === "number" &&
+          !isNaN(coords.lat)
+        ) {
+          mapRef.current?.flyTo({
+            lng: coords.lng,
+            lat: coords.lat,
+          });
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to parse saved coords", e);
+      }
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          mapRef.current?.flyTo({
+            lng: pos.coords.longitude,
+            lat: pos.coords.latitude,
+          });
+        },
+        () => {
+          mapRef.current?.flyTo({ lng: 7.0498, lat: 4.8156 });
+        },
+      );
+    }
+  }, []);
+
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-
-    // Normalize dates to midnight for accurate day comparison
     const eventDate = new Date(
       date.getFullYear(),
       date.getMonth(),
@@ -506,7 +527,24 @@ export default function MapPage() {
                       Time
                     </p>
                     <p className="text-xs font-bold text-gray-900">
-                      {formatDateTime(selected.startDate).time}
+                      {(() => {
+                        const start = new Date(selected.startDate).getTime();
+                        const now = new Date().getTime();
+                        const diffMins = Math.floor(
+                          (start - now) / (1000 * 60),
+                        );
+
+                        if (diffMins > 0 && diffMins <= 60) {
+                          return `Starts in ${diffMins}m`;
+                        }
+                        if (
+                          diffMins <= 0 &&
+                          new Date(selected.endDate).getTime() > now
+                        ) {
+                          return "Happening Now";
+                        }
+                        return formatDateTime(selected.startDate).time;
+                      })()}
                     </p>
                   </div>
                 </div>

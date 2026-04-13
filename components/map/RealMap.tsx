@@ -18,10 +18,10 @@ import { Event } from "@/lib/events";
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
 const statusColors: Record<string, string> = {
-  upcoming: "#EAB308", // A slightly deeper Gold (Tailwind Yellow-600) for better legibility
-  ongoing: "#059669", // A rich Emerald Green; feels more "active" than standard green
-  past: "#6B7280", // Medium Gray; recedes into the background so users focus on current events
-  default: "#715800", // Your brand Kivo Bronze
+  upcoming: "#EAB308",
+  ongoing: "#059669",
+  past: "#6B7280",
+  default: "#715800",
 };
 
 export interface MapRef {
@@ -46,7 +46,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       if (geolocateControlRef.current) {
         geolocateControlRef.current.trigger();
       }
-
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           mapRef.current?.flyTo({
@@ -73,7 +72,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
     useEffect(() => {
       if (!mapContainer.current || mapRef.current) return;
-
       const map = new mapboxgl.Map({
         container: mapContainer.current,
         style: "mapbox://styles/mapbox/light-v11",
@@ -93,7 +91,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
       map.on("load", () => {
         geolocate.trigger();
-
         map.addSource("events", {
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
@@ -180,12 +177,31 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           if (!markersRef.current[id]) {
             const el = document.createElement("div");
             const status = props.timeStatus || "upcoming";
+
+            // Starts Soon Logic (within 60 mins)
+            const startTime = new Date(props.startDate).getTime();
+            const now = new Date().getTime();
+            const diffInMins = (startTime - now) / (1000 * 60);
+            const startsSoon = diffInMins > 0 && diffInMins <= 60;
+
             el.className = `relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-125`;
-            const labelHtml =
-              status === "ongoing"
-                ? `<span class="absolute -top-7 whitespace-nowrap bg-green-400 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-bounce">LIVE</span>`
-                : "";
-            el.innerHTML = `${labelHtml}<div class="w-4 h-4 rounded-full border-2 border-white shadow-md ${status === "ongoing" ? "animate-pulse" : ""}" style="background: ${statusColors[status] || statusColors.default}"></div>`;
+
+            let labelHtml = "";
+            if (status === "ongoing") {
+              labelHtml = `<span class="absolute -top-7 whitespace-nowrap bg-green-500 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-bounce text-white">LIVE</span>`;
+            } else if (startsSoon) {
+              labelHtml = `<span class="absolute -top-7 whitespace-nowrap bg-amber-500 text-[8px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-pulse text-white">SOON</span>`;
+            }
+
+            const dotPulse =
+              status === "ongoing" || startsSoon ? "animate-pulse" : "";
+            const dotColor =
+              startsSoon && status !== "ongoing"
+                ? "#f59e0b"
+                : statusColors[status] || statusColors.default;
+
+            el.innerHTML = `${labelHtml}<div class="w-4 h-4 rounded-full border-2 border-white shadow-md ${dotPulse}" style="background: ${dotColor}"></div>`;
+
             el.onclick = (e) => {
               e.stopPropagation();
               onSelect(props);
@@ -212,7 +228,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
 
     return (
       <div className="relative w-full h-full">
-        {/* DUPLICATE BUTTON REMOVED FROM HERE */}
         <div ref={mapContainer} className="w-full h-full absolute inset-0" />
       </div>
     );
