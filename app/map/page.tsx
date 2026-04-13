@@ -335,12 +335,12 @@ export default function MapPage() {
           filteredEvents={filteredEvents}
         />
 
-        <div className="absolute bottom-28 right-4 z-[60] md:bottom-10 md:right-10">
+        <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10">
           <button
             onClick={handleLocateUser}
-            className="w-14 h-14 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl flex items-center justify-center text-[#715800] border border-white/50 active:scale-90 transition-all"
+            className="w-12 h-12 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-[#715800] border border-white/50 active:scale-95 transition-all"
           >
-            <LocateFixed size={24} />
+            <LocateFixed size={22} />
           </button>
         </div>
 
