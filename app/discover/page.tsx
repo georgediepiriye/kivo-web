@@ -17,6 +17,7 @@ import {
   Sparkles,
   Loader2,
   X,
+  ChevronLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { EVENT_CATEGORIES } from "@/lib/categories";
@@ -73,20 +74,38 @@ const getDateRange = (filter: string) => {
   return null;
 };
 
-// HELPER: Format Date and Time for high readability
+// HELPER: Human Readable Date (Today/Tomorrow/Editorial)
 const formatEventTime = (dateStr: string) => {
-  const d = new Date(dateStr);
-  const datePart = d.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const timePart = d.toLocaleTimeString("en-US", {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const eventDay = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+
+  const diffTime = eventDay.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  let dayLabel;
+  if (diffDays === 0) dayLabel = "Today";
+  else if (diffDays === 1) dayLabel = "Tomorrow";
+  else
+    dayLabel = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+
+  const timeLabel = date.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
-  return `${datePart} • ${timePart}`;
+
+  return `${dayLabel} • ${timeLabel}`;
 };
 
 export default function DiscoverPage() {
@@ -100,7 +119,7 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   const [dist, setDist] = useState(25);
-  const [page] = useState(1);
+  const [page, setPage] = useState(1);
   const [dateFilter, setDateFilter] = useState("");
   const [priceFilter, setPriceFilter] = useState<"all" | "free" | "paid">(
     "all",
@@ -108,6 +127,9 @@ export default function DiscoverPage() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "upcoming" | "ongoing" | "past"
   >("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "event" | "activity">(
+    "all",
+  );
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -147,9 +169,22 @@ export default function DiscoverPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    activeCat,
+    dist,
+    dateFilter,
+    priceFilter,
+    statusFilter,
+    typeFilter,
+  ]);
+
   const filtered = useMemo(() => {
     const searchLower = search.toLowerCase();
-    const now = new Date();
+    const now = new Date().getTime();
 
     return events.filter((e) => {
       const matchSearch = e.title.toLowerCase().includes(searchLower);
@@ -162,7 +197,8 @@ export default function DiscoverPage() {
         priceFilter === "all" ||
         (priceFilter === "free" ? e.isFree : !e.isFree);
 
-      // Date Filtering Logic
+      const matchType = typeFilter === "all" || e.type === typeFilter;
+
       let matchDate = true;
       if (dateFilter) {
         const eventDate = new Date(e.startDate);
@@ -172,14 +208,17 @@ export default function DiscoverPage() {
           : e.date === dateFilter;
       }
 
-      const startDate = new Date(e.startDate);
-      const endDate = new Date(e.endDate);
-      let status: "upcoming" | "ongoing" | "past" = "upcoming";
-      if (now < startDate) status = "upcoming";
-      else if (now >= startDate && now <= endDate) status = "ongoing";
-      else if (now > endDate) status = "past";
+      const start = new Date(e.startDate).getTime();
+      const end = new Date(e.endDate).getTime();
+      let currentStatus: "upcoming" | "ongoing" | "past" = "upcoming";
+      if (now < start) currentStatus = "upcoming";
+      else if (now <= end) currentStatus = "ongoing";
+      else currentStatus = "past";
 
-      const matchStatus = statusFilter === "all" || statusFilter === status;
+      const matchStatus =
+        statusFilter === "all" || statusFilter === currentStatus;
+
+      e.timeStatus = currentStatus;
 
       return (
         matchSearch &&
@@ -187,11 +226,22 @@ export default function DiscoverPage() {
         matchDist &&
         matchPrice &&
         matchDate &&
-        matchStatus
+        matchStatus &&
+        matchType
       );
     });
-  }, [events, search, activeCat, dist, dateFilter, priceFilter, statusFilter]);
+  }, [
+    events,
+    search,
+    activeCat,
+    dist,
+    dateFilter,
+    priceFilter,
+    statusFilter,
+    typeFilter,
+  ]);
 
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const current = filtered.slice(
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE,
@@ -204,6 +254,8 @@ export default function DiscoverPage() {
     setDateFilter("");
     setPriceFilter("all");
     setStatusFilter("all");
+    setTypeFilter("all");
+    setPage(1);
   };
 
   const trendingEvents = useMemo(
@@ -384,13 +436,22 @@ export default function DiscoverPage() {
 
                 <div className="sm:col-span-2 lg:col-span-4 flex flex-wrap gap-3 pt-6 border-t border-gray-200 mt-2">
                   <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                    className="bg-white px-6 py-3 rounded-xl border-none shadow-sm font-black text-[10px] uppercase tracking-widest text-gray-500"
+                  >
+                    <option value="all">Any Type</option>
+                    <option value="event">Events Only</option>
+                    <option value="activity">Activities Only</option>
+                  </select>
+                  <select
                     value={priceFilter}
                     onChange={(e) => setPriceFilter(e.target.value as any)}
                     className="bg-white px-6 py-3 rounded-xl border-none shadow-sm font-black text-[10px] uppercase tracking-widest text-gray-500"
                   >
                     <option value="all">Any Price</option>
-                    <option value="free">Free Events</option>
-                    <option value="paid">Paid Admission</option>
+                    <option value="free">Free Access</option>
+                    <option value="paid">Paid Access</option>
                   </select>
                   <select
                     value={statusFilter}
@@ -400,6 +461,7 @@ export default function DiscoverPage() {
                     <option value="all">Any Status</option>
                     <option value="ongoing">Happening Now</option>
                     <option value="upcoming">Upcoming</option>
+                    <option value="past">Past</option>
                   </select>
                   <button
                     onClick={clearFilters}
@@ -421,35 +483,90 @@ export default function DiscoverPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-20">
-            <AnimatePresence mode="popLayout">
-              {current.map((e) => (
-                <motion.div
-                  key={e.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                >
-                  <div
-                    onClick={() => router.push(`/discover/${e.id}`)}
-                    className="h-full relative cursor-pointer group rounded-[32px] overflow-hidden bg-white border border-gray-100 hover:shadow-2xl transition-all duration-500"
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12">
+              <AnimatePresence mode="popLayout">
+                {current.map((e) => (
+                  <motion.div
+                    key={e.id}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
                   >
-                    <EventCard
-                      {...e}
-                      organizerName={`Posted by ${e.organizerName}`}
-                      organizerImage={e.organizerImage}
-                      location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away`}
-                      time={formatEventTime(e.startDate)}
-                      buttonText={
-                        e.isFree ? "Free" : `₦${e.price.toLocaleString()}`
-                      }
-                    />
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+                    <div
+                      onClick={() => router.push(`/discover/${e.id}`)}
+                      className="h-full relative cursor-pointer group rounded-[32px] overflow-hidden bg-white border border-gray-100 hover:shadow-2xl transition-all duration-500"
+                    >
+                      {/* STATUS TAG OVERLAY */}
+                      <div className="absolute top-6 left-6 z-20 flex gap-2">
+                        <span
+                          className={`px-4 py-2 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 text-white ${
+                            e.timeStatus === "ongoing"
+                              ? "bg-green-500/90"
+                              : e.timeStatus === "upcoming"
+                                ? "bg-amber-500/90"
+                                : "bg-gray-500/90"
+                          }`}
+                        >
+                          <span
+                            className={`w-1 h-1 rounded-full bg-white ${e.timeStatus === "ongoing" ? "animate-pulse" : ""}`}
+                          />
+                          {e.timeStatus}
+                        </span>
+                      </div>
+
+                      <EventCard
+                        {...e}
+                        organizerName={`Posted by ${e.organizerName}`}
+                        organizerImage={e.organizerImage}
+                        location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away`}
+                        time={formatEventTime(e.startDate)}
+                        buttonText={
+                          e.isFree ? "Free" : `₦${e.price.toLocaleString()}`
+                        }
+                      />
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* PAGINATION CONTROLS */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mb-20">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="w-12 h-12 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="flex gap-2">
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      className={`w-12 h-12 rounded-2xl text-xs font-black transition-all ${
+                        page === i + 1
+                          ? "bg-gray-900 text-white shadow-lg"
+                          : "bg-white text-gray-400 border border-gray-100 hover:bg-gray-50"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="w-12 h-12 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* HORIZONTAL SECTIONS (The Hot List) */}

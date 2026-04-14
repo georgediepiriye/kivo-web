@@ -18,10 +18,9 @@ import { Event } from "@/lib/events";
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
 const statusColors: Record<string, string> = {
-  upcoming: "#EAB308", // Yellow/Gold
+  upcoming: "#EAB308", // Yellow
   ongoing: "#059669", // Green
-  past: "#6B7280", // Gray
-  default: "#715800", // Kivo Brown
+  default: "#715800",
 };
 
 export interface MapRef {
@@ -31,36 +30,34 @@ export interface MapRef {
 
 interface RealMapProps {
   onSelect: (event: Event) => void;
+  onSelectHotspot: (hotspot: any) => void;
   filteredEvents: Event[];
+  showHotspots: boolean;
+  hotspotCategory: string;
 }
 
 const RealMap = forwardRef<MapRef, RealMapProps>(
-  ({ onSelect, filteredEvents }, ref) => {
+  (
+    {
+      onSelect,
+      onSelectHotspot,
+      filteredEvents,
+      showHotspots,
+      hotspotCategory,
+    },
+    ref,
+  ) => {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapboxMap | null>(null);
     const geolocateControlRef = useRef<GeolocateControl | null>(null);
     const [isMapReady, setIsMapReady] = useState(false);
-
-    // Store both the marker and its current status to prevent flickering
     const markersRef = useRef<{
       [key: string]: { marker: Marker; status: string };
     }>({});
+    const hotspotMarkersRef = useRef<Marker[]>([]);
 
     const handleFlyToUser = () => {
-      if (geolocateControlRef.current) {
-        geolocateControlRef.current.trigger();
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          mapRef.current?.flyTo({
-            center: [pos.coords.longitude, pos.coords.latitude],
-            zoom: 13,
-            essential: true,
-          });
-        },
-        undefined,
-        { enableHighAccuracy: true },
-      );
+      if (geolocateControlRef.current) geolocateControlRef.current.trigger();
     };
 
     useImperativeHandle(ref, () => ({
@@ -74,6 +71,7 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       },
     }));
 
+    // --- INITIALIZATION ---
     useEffect(() => {
       if (!mapContainer.current || mapRef.current) return;
       const map = new mapboxgl.Map({
@@ -83,26 +81,25 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
         zoom: 11.5,
       });
 
+      // User Location Config
       const geolocate = new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
         showUserHeading: true,
-        showUserLocation: true,
+        showUserLocation: true, // This enables the blue dot
       });
 
       map.addControl(geolocate);
       geolocateControlRef.current = geolocate;
 
-      map.on("error", (e) => console.error("Mapbox error:", e));
-
       map.on("load", () => {
-        geolocate.trigger();
+        // Setup Sources for Clustering
         map.addSource("events", {
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
           cluster: true,
           clusterMaxZoom: 15,
-          clusterRadius: 40,
+          clusterRadius: 50,
         });
 
         map.addLayer({
@@ -111,15 +108,15 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           source: "events",
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": "rgba(30, 41, 59, 0.9)",
+            "circle-color": "#1E293B",
             "circle-radius": [
               "step",
               ["get", "point_count"],
-              18,
-              5,
-              22,
-              15,
+              20,
+              10,
               30,
+              30,
+              40,
             ],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#fff",
@@ -134,7 +131,7 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           layout: {
             "text-field": "{point_count}",
             "text-font": ["DIN Offc Pro Medium", "Arial Unicode MS Bold"],
-            "text-size": 11,
+            "text-size": 12,
           },
           paint: { "text-color": "#ffffff" },
         });
@@ -144,16 +141,82 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           type: "circle",
           source: "events",
           filter: ["!", ["has", "point_count"]],
-          paint: { "circle-radius": 0 },
+          paint: { "circle-radius": 0 }, // We use custom HTML markers instead
         });
 
         mapRef.current = map;
         setIsMapReady(true);
+
+        // Auto-trigger location on start
+        geolocate.trigger();
       });
 
       return () => map.remove();
     }, []);
 
+    // --- HOTSPOT MANAGEMENT ---
+    useEffect(() => {
+      if (!isMapReady || !mapRef.current) return;
+
+      hotspotMarkersRef.current.forEach((m) => m.remove());
+      hotspotMarkersRef.current = [];
+
+      if (!showHotspots) return;
+
+      const fetchHotspots = async () => {
+        try {
+          const categoryQuery =
+            hotspotCategory !== "all" ? `?category=${hotspotCategory}` : "";
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/V1/hotspots${categoryQuery}`,
+          );
+          const result = await res.json();
+
+          if (result.status === "success") {
+            result.data.hotspots.forEach((spot: any) => {
+              const el = document.createElement("div");
+              el.className =
+                "group relative cursor-pointer transition-transform active:scale-90";
+              el.innerHTML = `
+                <div class="absolute -inset-3 bg-orange-500/20 rounded-full blur-md animate-pulse"></div>
+                <div class="relative w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full shadow-lg"></div>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-[8px] font-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-tighter shadow-xl pointer-events-none">
+                  🔥 ${spot.title || spot.name || "Kivo Hotspot"}
+                </div>
+              `;
+
+              el.addEventListener("click", (e) => {
+                e.stopPropagation();
+                onSelectHotspot(spot);
+                mapRef.current?.flyTo({
+                  center: [
+                    spot.location.coordinates[0],
+                    spot.location.coordinates[1],
+                  ],
+                  zoom: 14,
+                  speed: 0.8,
+                });
+              });
+
+              const marker = new mapboxgl.Marker({ element: el })
+                .setLngLat([
+                  spot.location.coordinates[0],
+                  spot.location.coordinates[1],
+                ])
+                .addTo(mapRef.current!);
+
+              hotspotMarkersRef.current.push(marker);
+            });
+          }
+        } catch (err) {
+          console.error("Hotspot fetch failed", err);
+        }
+      };
+
+      fetchHotspots();
+    }, [isMapReady, showHotspots, hotspotCategory, onSelectHotspot]);
+
+    // --- EVENT MARKER MANAGEMENT ---
     useEffect(() => {
       if (!isMapReady || !mapRef.current) return;
       const map = mapRef.current;
@@ -181,76 +244,42 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           const coords = (feature.geometry as any).coordinates;
           activeIds.add(id);
 
-          // RE-CALCULATE STATUS IN REAL TIME
           const now = new Date().getTime();
           const start = new Date(props.startDate).getTime();
           const end = new Date(props.endDate).getTime();
-
           const isLive = now >= start && now <= end;
-          const diffInMins = (start - now) / (1000 * 60);
-          const startsSoon = !isLive && diffInMins > 0 && diffInMins <= 60;
+          const currentStatus = isLive ? "live" : "upcoming";
 
-          // Generate a current status string to check against existing marker
-          const currentStatus = isLive
-            ? "live"
-            : startsSoon
-              ? "soon"
-              : now > end
-                ? "past"
-                : "upcoming";
-
-          // If marker exists AND status hasn't changed, skip update (STOPS FLICKERING)
           if (
             markersRef.current[id] &&
             markersRef.current[id].status === currentStatus
-          ) {
+          )
             return;
-          }
-
-          // If marker exists but status changed, remove it to rebuild
-          if (markersRef.current[id]) {
-            markersRef.current[id].marker.remove();
-          }
+          if (markersRef.current[id]) markersRef.current[id].marker.remove();
 
           const el = document.createElement("div");
           el.className = `relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-125`;
 
           let labelHtml = "";
-          let dotColor = statusColors.default;
+          let dotColor = statusColors.upcoming;
           let dotPulse = "";
 
           if (isLive) {
-            labelHtml = `<span class="absolute -top-7 whitespace-nowrap bg-green-500 text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-bounce text-white tracking-tighter">LIVE</span>`;
+            labelHtml = `<span class="absolute -top-7 bg-green-500 text-[8px] font-black px-2 py-0.5 rounded-full border border-white text-white tracking-tighter animate-bounce">LIVE</span>`;
             dotColor = statusColors.ongoing;
             dotPulse = "animate-pulse";
-          } else if (startsSoon) {
-            labelHtml = `<span class="absolute -top-7 whitespace-nowrap bg-amber-500 text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm border border-white uppercase animate-pulse text-white tracking-tighter">SOON</span>`;
-            dotColor = "#f59e0b"; // Specific Amber for SOON
-            dotPulse = "animate-pulse";
-          } else if (now > end) {
-            dotColor = statusColors.past;
-          } else {
-            dotColor = statusColors.upcoming;
           }
 
-          el.innerHTML = `
-            ${labelHtml}
-            <div class="w-4 h-4 rounded-full border-2 border-white shadow-md ${dotPulse}" 
-                 style="background: ${dotColor}">
-            </div>
-          `;
+          el.innerHTML = `${labelHtml}<div class="w-4 h-4 rounded-full border-2 border-white shadow-md ${dotPulse}" style="background-color: ${dotColor}"></div>`;
+          el.addEventListener("click", () => onSelect(props));
 
-          el.onclick = (e) => {
-            e.stopPropagation();
-            onSelect(props);
-          };
-
-          const marker = new mapboxgl.Marker(el).setLngLat(coords).addTo(map);
-
+          const marker = new mapboxgl.Marker({ element: el })
+            .setLngLat(coords)
+            .addTo(map);
           markersRef.current[id] = { marker, status: currentStatus };
         });
 
-        // Cleanup markers that are no longer in view
+        // Clean up old markers
         Object.keys(markersRef.current).forEach((id) => {
           if (!activeIds.has(id)) {
             markersRef.current[id].marker.remove();
@@ -263,13 +292,9 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
       return () => {
         map.off("render", updateMarkers);
       };
-    }, [filteredEvents, isMapReady]);
+    }, [isMapReady, filteredEvents, onSelect]);
 
-    return (
-      <div className="relative w-full h-full">
-        <div ref={mapContainer} className="w-full h-full absolute inset-0" />
-      </div>
-    );
+    return <div ref={mapContainer} className="w-full h-full" />;
   },
 );
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 // Importing consistent icons from Lucide
@@ -14,16 +15,39 @@ import {
 } from "lucide-react";
 
 export default function HeroAndAssistant() {
+  const [apiStatus, setApiStatus] = useState<"loading" | "online" | "offline">(
+    "loading",
+  );
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`);
+        if (res.ok) {
+          setApiStatus("online");
+        } else {
+          setApiStatus("offline");
+        }
+      } catch (error) {
+        console.error("API Healthcheck failed:", error);
+        setApiStatus("offline");
+      }
+    };
+
+    checkHealth();
+  }, []);
+
   return (
     <>
       {/* ===== HERO SECTION ===== */}
       <section className="max-w-7xl mx-auto px-6 md:px-8 py-16 md:py-24 flex flex-col md:flex-row items-center gap-12 md:gap-16 pt-32">
         {/* LEFT SIDE */}
         <div className="flex-1 space-y-6 md:space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-black rounded-full text-xs font-bold tracking-widest uppercase border border-black/5">
-            {/* Bolt replaced with Lucide Zap */}
-            <Zap size={14} className="fill-current" />
-            Live in port harcourt
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-black rounded-full text-xs font-bold tracking-widest uppercase border border-black/5">
+              <Zap size={14} className="fill-current" />
+              Live in port harcourt
+            </div>
           </div>
 
           <h1 className="text-4xl md:text-7xl font-black tracking-tighter leading-[1.05] text-on-surface">

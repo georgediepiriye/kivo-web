@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useRef, useState, useMemo, useEffect, useCallback } from "react";
+import { useRef, useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,12 +16,24 @@ import {
   Calendar,
   Clock,
   AlertCircle,
+  Flame,
+  MapPin,
+  Navigation,
+  Info,
+  Music,
+  Utensils,
+  Coffee,
+  Beer,
+  Sparkles,
+  ShoppingBag,
+  Palette,
+  Laptop,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import Navbar from "@/components/layout/NavBar"; // Fixed casing: NavBar
+import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import { Event } from "@/lib/events";
@@ -35,19 +47,33 @@ const RealMap = dynamic(() => import("@/components/map/RealMap"), {
   ),
 });
 
-type FilterType = "all" | "upcoming" | "ongoing" | "past";
+type FilterType = "all" | "upcoming" | "ongoing";
 type KindType = "all" | "event" | "activity";
+
+const HOTSPOT_CATEGORIES = [
+  { id: "all", label: "All Spots", icon: <Sparkles size={14} /> },
+  { id: "nightlife", label: "Nightlife", icon: <Music size={14} /> },
+  { id: "dining", label: "Dining", icon: <Utensils size={14} /> },
+  { id: "lounge", label: "Lounges", icon: <Beer size={14} /> },
+  { id: "cafe", label: "Cafes", icon: <Coffee size={14} /> },
+  { id: "workspace", label: "Workspaces", icon: <Laptop size={14} /> },
+  { id: "arts", label: "Arts & Culture", icon: <Palette size={14} /> },
+  { id: "wellness", label: "Wellness", icon: <Heart size={14} /> },
+  { id: "retail", label: "Shopping", icon: <ShoppingBag size={14} /> },
+];
 
 export default function MapPage() {
   const router = useRouter();
   const mapRef = useRef<any>(null);
 
-  // UI State
   const [selected, setSelected] = useState<Event | null>(null);
+  const [selectedHotspot, setSelectedHotspot] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [activeKind, setActiveKind] = useState<KindType>("all");
+  const [activeHotspotCat, setActiveHotspotCat] = useState("all");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showHotspots, setShowHotspots] = useState(true);
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -57,7 +83,6 @@ export default function MapPage() {
     return false;
   });
 
-  // TanStack Query for Data Fetching & Caching
   const {
     data: events = [],
     isLoading,
@@ -69,10 +94,8 @@ export default function MapPage() {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/V1/events?limit=100`,
       );
-
       if (!response.ok) throw new Error("Network error");
       const result = await response.json();
-
       if (result.status !== "success") throw new Error("Fetch failed");
 
       return result.data.events.map((e: any) => ({
@@ -110,13 +133,15 @@ export default function MapPage() {
       .map((event: any) => {
         const start = new Date(event.startDate).getTime();
         const end = new Date(event.endDate).getTime();
-        const timeStatus: FilterType =
+        const timeStatus =
           now < start ? "upcoming" : now <= end ? "ongoing" : "past";
         return { ...event, timeStatus };
       })
       .filter((event: any) => {
         const matchesSearch =
           !search || event.title.toLowerCase().includes(query);
+        if (event.timeStatus === "past") return false;
+
         const matchesFilter =
           activeFilter === "all" || event.timeStatus === activeFilter;
         const matchesKind =
@@ -156,40 +181,19 @@ export default function MapPage() {
   }, []);
 
   const handleLocateUser = useCallback(() => {
-    const saved = localStorage.getItem("user_coords");
-
-    if (saved) {
-      try {
-        const coords = JSON.parse(saved);
-        if (
-          coords &&
-          typeof coords.lat === "number" &&
-          typeof coords.lng === "number" &&
-          !isNaN(coords.lat)
-        ) {
-          mapRef.current?.flyTo({
-            lng: coords.lng,
-            lat: coords.lat,
-          });
-          return;
-        }
-      } catch (e) {
-        console.error("Failed to parse saved coords", e);
-      }
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
+    // We trigger the internal Mapbox geolocate control via the ref
+    if (mapRef.current?.flyToUser) {
+      mapRef.current.flyToUser();
+    } else {
+      // Fallback if component isn't fully ready
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
           mapRef.current?.flyTo({
             lng: pos.coords.longitude,
             lat: pos.coords.latitude,
           });
-        },
-        () => {
-          mapRef.current?.flyTo({ lng: 7.0498, lat: 4.8156 });
-        },
-      );
+        });
+      }
     }
   }, []);
 
@@ -202,16 +206,13 @@ export default function MapPage() {
       date.getDate(),
     );
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
     const diffTime = eventDate.getTime() - today.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     let dateDisplay;
-    if (diffDays === 0) {
-      dateDisplay = "Today";
-    } else if (diffDays === 1) {
-      dateDisplay = "Tomorrow";
-    } else {
+    if (diffDays === 0) dateDisplay = "Today";
+    else if (diffDays === 1) dateDisplay = "Tomorrow";
+    else {
       dateDisplay = date.toLocaleDateString("en-US", {
         weekday: "short",
         month: "short",
@@ -233,10 +234,18 @@ export default function MapPage() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50 font-sans text-gray-900 antialiased">
       <OnboardingFlow />
-
       <style jsx global>{`
+        /* Changed from display:none to visibility:hidden to keep the user icon active */
         .mapboxgl-ctrl-geolocate {
-          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
 
@@ -246,7 +255,7 @@ export default function MapPage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center"
           >
-            <div className="font-black text-3xl text-[#715800] mb-4 tracking-tighter italic">
+            <div className="font-black text-3xl text-gray-900 mb-4 tracking-tighter italic">
               Kivo
             </div>
             <Loader2 className="animate-spin text-gray-200" size={32} />
@@ -268,8 +277,7 @@ export default function MapPage() {
               Connection Lost
             </h3>
             <p className="text-gray-500 text-sm mb-8 max-w-[240px]">
-              We couldn&apos;t reach Kivo. Check your internet and let&apos;s
-              try that again.
+              We couldn&apos;t reach Kivo. Check your internet.
             </p>
             <button
               onClick={() => refetch()}
@@ -292,17 +300,16 @@ export default function MapPage() {
           >
             <div className="min-h-screen flex flex-col pb-24">
               <div className="h-24 px-8 flex items-center justify-between shrink-0">
-                <span className="text-2xl font-black text-[#715800] tracking-tighter">
+                <span className="text-2xl font-black text-gray-900 tracking-tighter">
                   Kivo
                 </span>
                 <button
                   onClick={() => setMenuOpen(false)}
-                  className="w-11 h-11 flex items-center justify-center bg-gray-50 rounded-2xl text-[#715800]"
+                  className="w-11 h-11 flex items-center justify-center bg-gray-50 rounded-2xl"
                 >
                   <X size={24} />
                 </button>
               </div>
-
               <div className="px-8 flex-1">
                 <div className="flex flex-col gap-1">
                   {navLinks.map((link, i) => (
@@ -325,7 +332,6 @@ export default function MapPage() {
                     </motion.div>
                   ))}
                 </div>
-
                 <div className="mt-12 space-y-4 pb-10">
                   {isLoggedIn ? (
                     <button
@@ -364,6 +370,7 @@ export default function MapPage() {
       </div>
 
       <div className="flex-1 relative">
+        {/* MOBILE TOP BAR - CLEANED SEARCH */}
         <div className="md:hidden fixed top-0 left-0 w-full z-[70] bg-white/60 backdrop-blur-lg px-3 py-2 flex items-center gap-2 border-b border-gray-100">
           <div className="relative flex-1">
             <Search
@@ -374,21 +381,17 @@ export default function MapPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search local..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-100/80 text-xs border-transparent outline-none font-bold"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-100/80 text-xs border-transparent outline-none font-bold focus:ring-1 focus:ring-gray-300"
             />
           </div>
-          <div className="flex bg-gray-100/80 p-0.5 rounded-xl border border-gray-200/50">
+          <div className="flex bg-gray-100/50 p-0.5 rounded-xl border border-gray-200/50">
             {(["event", "activity"] as KindType[]).map((kind) => (
               <button
                 key={kind}
                 onClick={() =>
                   setActiveKind(activeKind === kind ? "all" : kind)
                 }
-                className={`px-3 py-1.5 rounded-[10px] text-[9px] font-black uppercase transition-all ${
-                  activeKind === kind
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-400"
-                }`}
+                className={`px-3 py-1.5 rounded-[10px] text-[9px] font-black uppercase transition-all border ${activeKind === kind ? "bg-white border-gray-200 text-black shadow-sm" : "border-transparent text-gray-400"}`}
               >
                 {kind}
               </button>
@@ -396,58 +399,172 @@ export default function MapPage() {
           </div>
           <button
             onClick={() => setMenuOpen(true)}
-            className="w-9 h-9 flex items-center rounded-xl bg-white/80 justify-center text-[#715800] border border-gray-100 shadow-sm font-black"
+            className="w-9 h-9 flex items-center rounded-xl bg-white/80 justify-center text-gray-900 border border-gray-100 shadow-sm font-black"
           >
             ☰
           </button>
         </div>
 
-        <div className="fixed top-[58px] md:top-[100px] left-1/2 -translate-x-1/2 z-[40] w-[94%] max-w-sm">
-          <div className="flex justify-between items-center bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-1 border border-white/20">
-            {(["all", "upcoming", "ongoing", "past"] as FilterType[]).map(
-              (status) => (
-                <button
-                  key={status}
-                  onClick={() => setActiveFilter(status)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all ${
-                    activeFilter === status
-                      ? "bg-white shadow-sm"
-                      : "opacity-60"
-                  }`}
-                >
-                  <span className="text-sm">
-                    {status === "upcoming"
-                      ? "📅"
-                      : status === "ongoing"
-                        ? "🔥"
-                        : status === "past"
-                          ? "📁"
-                          : "🌐"}
-                  </span>
-                  <span className="text-[9px] font-black uppercase tracking-tighter">
-                    {status}
-                  </span>
-                </button>
-              ),
-            )}
+        {/* TOP CONTROLS CONTAINER - LESS LOUD STYLE */}
+        <div className="fixed top-[58px] md:top-[100px] left-0 w-full z-[40] flex flex-col gap-2 items-center">
+          {/* TIME FILTER - OUTLINE STYLE */}
+          <div className="w-[94%] max-w-sm flex justify-between items-center bg-white/80 backdrop-blur-xl shadow-lg rounded-2xl p-1 border border-white/40">
+            {(["all", "upcoming", "ongoing"] as FilterType[]).map((status) => (
+              <button
+                key={status}
+                onClick={() => setActiveFilter(status)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all border ${activeFilter === status ? "bg-white border-gray-100 text-black shadow-sm" : "border-transparent opacity-50 hover:opacity-100"}`}
+              >
+                <span className="text-sm">
+                  {status === "upcoming"
+                    ? "📅"
+                    : status === "ongoing"
+                      ? "🔥"
+                      : "🌐"}
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-tighter">
+                  {status}
+                </span>
+              </button>
+            ))}
           </div>
+
+          {/* HOTSPOT CATEGORY FILTER - GHOST STYLE */}
+          <AnimatePresence>
+            {showHotspots && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="w-full overflow-x-auto hide-scrollbar px-4"
+              >
+                <div className="flex gap-2 mx-auto w-max py-1">
+                  {HOTSPOT_CATEGORIES.map((cat) => {
+                    const isActive = activeHotspotCat === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveHotspotCat(cat.id)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-tighter whitespace-nowrap transition-all duration-300 border shadow-md ${
+                          isActive
+                            ? "bg-white text-black border-gray-200 scale-105"
+                            : "bg-white/70 text-gray-400 border-white/50 backdrop-blur-md"
+                        }`}
+                      >
+                        <span
+                          className={`transition-colors duration-300 ${isActive ? "text-black" : "text-gray-300"}`}
+                        >
+                          {cat.icon}
+                        </span>
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <RealMap
           ref={mapRef}
           onSelect={setSelected}
+          onSelectHotspot={setSelectedHotspot}
           filteredEvents={filteredEvents}
+          showHotspots={showHotspots}
+          hotspotCategory={activeHotspotCat}
         />
 
-        <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10">
+        <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10 flex flex-col gap-3">
+          <button
+            onClick={() => setShowHotspots(!showHotspots)}
+            className={`w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center transition-all border border-white/50 active:scale-95 ${
+              showHotspots
+                ? "bg-white text-black border-gray-100"
+                : "bg-white/95 text-gray-400 border-transparent"
+            }`}
+          >
+            <Flame
+              size={22}
+              className={showHotspots ? "fill-black text-black" : ""}
+            />
+          </button>
+
           <button
             onClick={handleLocateUser}
-            className="w-12 h-12 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-[#715800] border border-white/50 active:scale-95 transition-all"
+            className="w-12 h-12 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-black border border-white/50 active:scale-95 transition-all"
           >
             <LocateFixed size={22} />
           </button>
         </div>
 
+        {/* HOTSPOT PREVIEW CARD */}
+        <AnimatePresence>
+          {selectedHotspot && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="fixed inset-x-4 bottom-32 z-[110] md:inset-x-auto md:right-10 md:bottom-32 md:w-80"
+            >
+              <div className="bg-white rounded-[32px] shadow-2xl border border-gray-100 p-6 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-4">
+                  <button
+                    onClick={() => setSelectedHotspot(null)}
+                    className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:text-black transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-black border border-gray-100">
+                    <Flame size={24} fill="currentColor" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
+                      {selectedHotspot.category || "Hotspot"}
+                    </span>
+                    <h3 className="text-xl font-black text-gray-900 tracking-tighter leading-tight">
+                      {selectedHotspot.title || selectedHotspot.name}
+                    </h3>
+                  </div>
+                </div>
+
+                <p className="text-gray-500 text-xs font-medium leading-relaxed mb-6">
+                  {selectedHotspot.description ||
+                    "One of the most active hubs in the city. Expect high energy and frequent events here."}
+                </p>
+
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <MapPin size={14} className="shrink-0" />
+                    <span className="text-[11px] font-bold truncate">
+                      {selectedHotspot.address || "Port Harcourt, Rivers State"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-400">
+                    <Info size={14} className="shrink-0" />
+                    <span className="text-[11px] font-bold">
+                      Typically active 24/7
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="py-3 bg-gray-50 text-gray-900 font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-100 transition-all border border-gray-100">
+                    <Navigation size={12} /> Directions
+                  </button>
+                  <button className="py-3 bg-black text-white font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-black/10 active:scale-95 transition-all">
+                    View Details
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* EVENT PREVIEW SHEET */}
         <AnimatePresence>
           {selected && (
             <motion.div
@@ -461,7 +578,6 @@ export default function MapPage() {
                 className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 cursor-pointer"
                 onClick={() => setSelected(null)}
               />
-
               <div className="flex items-center justify-between mb-6 bg-gray-50 p-3 rounded-3xl border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="relative h-10 w-10">
@@ -470,7 +586,7 @@ export default function MapPage() {
                       alt="Org"
                       fill
                       sizes="40px"
-                      className="rounded-full object-cover"
+                      className="rounded-full object-cover border border-white"
                     />
                   </div>
                   <div>
@@ -484,11 +600,7 @@ export default function MapPage() {
                 </div>
                 <button
                   onClick={() => toggleFollow((selected as any).organizerName)}
-                  className={`px-4 py-2 rounded-full text-xs font-black transition ${
-                    followedUsers.has((selected as any).organizerName)
-                      ? "bg-gray-200 text-gray-600"
-                      : "bg-[#715800] text-white"
-                  }`}
+                  className={`px-4 py-2 rounded-full text-xs font-black transition ${followedUsers.has((selected as any).organizerName) ? "bg-gray-200 text-gray-600" : "bg-black text-white"}`}
                 >
                   {followedUsers.has((selected as any).organizerName)
                     ? "Following"
@@ -498,9 +610,19 @@ export default function MapPage() {
 
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
-                  <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase">
-                    👥 {selected.attendees} going
-                  </span>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase">
+                      👥 {selected.attendees} going
+                    </span>
+                    <span
+                      className={`text-[10px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1.5 ${(selected as any).timeStatus === "ongoing" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${(selected as any).timeStatus === "ongoing" ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}
+                      />
+                      {(selected as any).timeStatus}
+                    </span>
+                  </div>
                   <h2 className="font-black text-2xl text-gray-900 mt-3">
                     {selected.title}
                   </h2>
@@ -508,7 +630,7 @@ export default function MapPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={(e) => toggleLike(e, selected._id)}
-                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center"
+                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
                   >
                     <Heart
                       size={18}
@@ -535,15 +657,14 @@ export default function MapPage() {
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, 800px"
-                  className="object-cover rounded-[28px] shadow-sm"
+                  className="object-cover rounded-[28px] shadow-sm border border-gray-50"
                 />
               </div>
 
-              {/* DATE AND TIME SECTION */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                    <Calendar size={18} className="text-[#715800]" />
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-50">
+                    <Calendar size={18} className="text-black" />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase">
@@ -555,32 +676,15 @@ export default function MapPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                    <Clock size={18} className="text-[#715800]" />
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-50">
+                    <Clock size={18} className="text-black" />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase">
                       Time
                     </p>
                     <p className="text-xs font-bold text-gray-900">
-                      {(() => {
-                        const start = new Date(selected.startDate).getTime();
-                        const now = new Date().getTime();
-                        const diffMins = Math.floor(
-                          (start - now) / (1000 * 60),
-                        );
-
-                        if (diffMins > 0 && diffMins <= 60) {
-                          return `Starts in ${diffMins}m`;
-                        }
-                        if (
-                          diffMins <= 0 &&
-                          new Date(selected.endDate).getTime() > now
-                        ) {
-                          return "Happening Now";
-                        }
-                        return formatDateTime(selected.startDate).time;
-                      })()}
+                      {formatDateTime(selected.startDate).time}
                     </p>
                   </div>
                 </div>
@@ -592,9 +696,7 @@ export default function MapPage() {
                     Entry Fee
                   </p>
                   <p
-                    className={`text-sm font-black ${
-                      selected.isFree ? "text-green-600" : "text-gray-900"
-                    }`}
+                    className={`text-sm font-black ${selected.isFree ? "text-green-600" : "text-gray-900"}`}
                   >
                     {selected.isFree
                       ? "FREE"
@@ -613,7 +715,7 @@ export default function MapPage() {
 
               <button
                 onClick={() => router.push(`/discover/${selected.id}`)}
-                className="w-full py-5 bg-[#715800] text-white font-black rounded-3xl shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest"
+                className="w-full py-5 bg-black text-white font-black rounded-3xl shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest"
               >
                 {selected.type === "activity"
                   ? "View Activity"

@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import CheckoutPanel from "@/components/events/CheckoutPanel";
@@ -28,7 +29,6 @@ export default function EventDetailsPage() {
   const router = useRouter();
 
   // States
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -57,16 +57,30 @@ export default function EventDetailsPage() {
     if (params.id) fetchEventDetails();
   }, [params.id]);
 
+  // Status Logic
+  const timeStatus = useMemo(() => {
+    if (!event) return null;
+    const now = new Date().getTime();
+    const start = new Date(event.startDate).getTime();
+    const end = new Date(event.endDate).getTime();
+
+    if (now < start) return "upcoming";
+    if (now <= end) return "ongoing";
+    return "past";
+  }, [event]);
+
   const handleReport = () => {
     alert(
       "Thank you for your report. Our team will review this event shortly.",
     );
   };
 
-  // Success callback from Checkout Panel
-  const handleCheckoutSuccess = () => {
-    setHasReserved(true);
-    setIsCheckoutOpen(false);
+  const handleOpenMap = () => {
+    if (event?.location?.coordinates) {
+      const [lng, lat] = event.location.coordinates;
+      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      window.open(url, "_blank");
+    }
   };
 
   if (loading) {
@@ -84,19 +98,49 @@ export default function EventDetailsPage() {
 
   if (!event) return <div className="p-20 text-center">Event not found.</div>;
 
-  const formattedDate = new Date(event.startDate).toLocaleDateString("en-NG", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // IMPROVED HUMAN-READABLE DATE FORMATTING
+  const getFormattedDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const eventDay = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+
+    const diffTime = eventDay.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    let dayLabel;
+    if (diffDays === 0) {
+      dayLabel = "Today";
+    } else if (diffDays === 1) {
+      dayLabel = "Tomorrow";
+    } else {
+      dayLabel = date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    const timeLabel = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${dayLabel} • ${timeLabel}`;
+  };
+
+  const formattedDate = getFormattedDate(event.startDate);
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex flex-col">
       <Navbar />
 
-      {/* Checkout Slide-over Panel */}
       <CheckoutPanel
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
@@ -105,7 +149,6 @@ export default function EventDetailsPage() {
 
       <main className="flex-1 pt-20 pb-32 md:pt-28 md:pb-24">
         <div className="max-w-6xl mx-auto px-6">
-          {/* NAVIGATION & ACTIONS */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => router.back()}
@@ -132,7 +175,6 @@ export default function EventDetailsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-            {/* LEFT COLUMN: VISUALS & INFO */}
             <div className="lg:col-span-8 space-y-10">
               <div className="relative aspect-[16/9] w-full rounded-[40px] overflow-hidden shadow-2xl shadow-black/5 border border-gray-100">
                 <Image
@@ -144,14 +186,29 @@ export default function EventDetailsPage() {
                   fill
                   className="object-cover"
                 />
-                <div className="absolute top-6 left-6">
+                <div className="absolute top-6 left-6 flex gap-2">
                   <span className="px-5 py-2.5 bg-white/90 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-xl">
                     {event.category}
+                  </span>
+
+                  {/* DYNAMIC STATUS BADGE */}
+                  <span
+                    className={`px-5 py-2.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 ${
+                      timeStatus === "ongoing"
+                        ? "bg-green-500/90 text-white"
+                        : timeStatus === "upcoming"
+                          ? "bg-amber-500/90 text-white"
+                          : "bg-gray-500/90 text-white"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full bg-white ${timeStatus === "ongoing" ? "animate-pulse" : ""}`}
+                    />
+                    {timeStatus}
                   </span>
                 </div>
               </div>
 
-              {/* ORGANIZER SECTION */}
               <div className="p-6 bg-gray-50 rounded-[32px] border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
                   <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm">
@@ -196,7 +253,6 @@ export default function EventDetailsPage() {
                 </button>
               </div>
 
-              {/* DETAILS */}
               <div className="space-y-6">
                 <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-gray-900 leading-[0.9]">
                   {event.title}
@@ -249,20 +305,17 @@ export default function EventDetailsPage() {
               </div>
             </div>
 
-            {/* RIGHT COLUMN: BOOKING & MAP */}
             <div className="lg:col-span-4 space-y-6">
               <div className="hidden lg:block sticky top-28 p-8 bg-white rounded-[40px] border border-gray-100 shadow-xl shadow-black/5 space-y-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                      Entry
-                    </p>
-                    <p className="text-2xl font-black text-gray-900">
-                      {event.isFree
-                        ? "Free"
-                        : `₦${event.price?.toLocaleString()}`}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Entry
+                  </p>
+                  <p className="text-2xl font-black text-gray-900">
+                    {event.isFree
+                      ? "Free"
+                      : `₦${event.price?.toLocaleString()}`}
+                  </p>
                 </div>
 
                 <button
@@ -285,7 +338,10 @@ export default function EventDetailsPage() {
                 <div className="pt-6 border-t border-gray-100">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center justify-between">
                     Venue Location
-                    <span className="text-[#715800] cursor-pointer">
+                    <span
+                      onClick={handleOpenMap}
+                      className="text-[#715800] cursor-pointer"
+                    >
                       View Map
                     </span>
                   </p>
@@ -306,7 +362,6 @@ export default function EventDetailsPage() {
         </div>
       </main>
 
-      {/* MOBILE STICKY FOOTER BUTTON */}
       {!isCheckoutOpen && (
         <div className="lg:hidden fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-[100]">
           <div className="max-w-md mx-auto flex items-center gap-4">
