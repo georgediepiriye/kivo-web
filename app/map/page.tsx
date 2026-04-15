@@ -17,17 +17,14 @@ import {
   Clock,
   AlertCircle,
   Flame,
-  MapPin,
   Navigation,
-  Info,
   Music,
   Utensils,
   Coffee,
-  Beer,
   Sparkles,
   ShoppingBag,
   Palette,
-  Laptop,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,6 +34,7 @@ import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import { Event } from "@/lib/events";
+import MapGuide from "@/components/onboarding/MapGuide";
 
 const RealMap = dynamic(() => import("@/components/map/RealMap"), {
   ssr: false,
@@ -47,18 +45,16 @@ const RealMap = dynamic(() => import("@/components/map/RealMap"), {
   ),
 });
 
-type FilterType = "all" | "upcoming" | "ongoing";
+type FilterType = "upcoming" | "ongoing";
 type KindType = "all" | "event" | "activity";
 
+// Consolidated Categories for better UX
 const HOTSPOT_CATEGORIES = [
   { id: "all", label: "All Spots", icon: <Sparkles size={14} /> },
-  { id: "nightlife", label: "Nightlife", icon: <Music size={14} /> },
-  { id: "dining", label: "Dining", icon: <Utensils size={14} /> },
-  { id: "lounge", label: "Lounges", icon: <Beer size={14} /> },
-  { id: "cafe", label: "Cafes", icon: <Coffee size={14} /> },
-  { id: "workspace", label: "Workspaces", icon: <Laptop size={14} /> },
-  { id: "arts", label: "Arts & Culture", icon: <Palette size={14} /> },
-  { id: "wellness", label: "Wellness", icon: <Heart size={14} /> },
+  { id: "dining", label: "Food", icon: <Utensils size={14} /> },
+  { id: "nightlife", label: "Social", icon: <Music size={14} /> },
+  { id: "cafe", label: "Chill", icon: <Coffee size={14} /> },
+  { id: "arts", label: "Creative", icon: <Palette size={14} /> },
   { id: "retail", label: "Shopping", icon: <ShoppingBag size={14} /> },
 ];
 
@@ -68,7 +64,7 @@ export default function MapPage() {
 
   const [selected, setSelected] = useState<Event | null>(null);
   const [selectedHotspot, setSelectedHotspot] = useState<any>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [activeFilter, setActiveFilter] = useState<FilterType>("ongoing");
   const [activeKind, setActiveKind] = useState<KindType>("all");
   const [activeHotspotCat, setActiveHotspotCat] = useState("all");
   const [search, setSearch] = useState("");
@@ -82,6 +78,18 @@ export default function MapPage() {
     }
     return false;
   });
+  const [showGuide, setShowGuide] = useState(() => {
+    // Only show automatically if they haven't seen it before
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem("kivo_map_guided");
+    }
+    return false;
+  });
+
+  const closeGuide = () => {
+    localStorage.setItem("kivo_map_guided", "true");
+    setShowGuide(false);
+  };
 
   const {
     data: events = [],
@@ -113,18 +121,6 @@ export default function MapPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const navLinks = useMemo(
-    () => [
-      { href: "/map", label: "Map" },
-      { href: "/discover", label: "Discover" },
-      { href: "/create", label: "Add Event" },
-      { href: "/chat", label: "AI Assistant" },
-      { href: "/about", label: "About" },
-      { href: "/contact", label: "Contact Us" },
-    ],
-    [],
-  );
-
   const filteredEvents = useMemo(() => {
     const now = new Date().getTime();
     const query = search.toLowerCase();
@@ -138,18 +134,18 @@ export default function MapPage() {
         return { ...event, timeStatus };
       })
       .filter((event: any) => {
-        const matchesSearch =
-          !search || event.title.toLowerCase().includes(query);
         if (event.timeStatus === "past") return false;
 
-        const matchesFilter =
-          activeFilter === "all" || event.timeStatus === activeFilter;
+        const matchesSearch =
+          !search || event.title.toLowerCase().includes(query);
+        const matchesFilter = event.timeStatus === activeFilter;
         const matchesKind =
           activeKind === "all"
             ? true
             : activeKind === "event"
               ? event.type === "showcase"
               : event.type === "activity";
+
         return matchesSearch && matchesFilter && matchesKind;
       });
   }, [events, search, activeFilter, activeKind]);
@@ -181,11 +177,9 @@ export default function MapPage() {
   }, []);
 
   const handleLocateUser = useCallback(() => {
-    // We trigger the internal Mapbox geolocate control via the ref
     if (mapRef.current?.flyToUser) {
       mapRef.current.flyToUser();
     } else {
-      // Fallback if component isn't fully ready
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((pos) => {
           mapRef.current?.flyTo({
@@ -217,7 +211,6 @@ export default function MapPage() {
         weekday: "short",
         month: "short",
         day: "numeric",
-        year: "numeric",
       });
     }
 
@@ -231,11 +224,25 @@ export default function MapPage() {
     };
   };
 
+  const navLinks = useMemo(
+    () => [
+      { href: "/map", label: "Map" },
+      { href: "/discover", label: "Discover" },
+      { href: "/create", label: "Add Event" },
+      { href: "/chat", label: "AI Assistant" },
+      { href: "/about", label: "About" },
+      { href: "/contact", label: "Contact Us" },
+    ],
+    [],
+  );
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-50 font-sans text-gray-900 antialiased">
+    <div className="flex flex-col h-screen overflow-hidden bg-white font-sans text-gray-900 antialiased">
       <OnboardingFlow />
+      <AnimatePresence>
+        {showGuide && <MapGuide onClose={closeGuide} />}
+      </AnimatePresence>
       <style jsx global>{`
-        /* Changed from display:none to visibility:hidden to keep the user icon active */
         .mapboxgl-ctrl-geolocate {
           visibility: hidden !important;
           pointer-events: none !important;
@@ -246,6 +253,14 @@ export default function MapPage() {
         .hide-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        .scroll-mask {
+          mask-image: linear-gradient(to right, black 85%, transparent 100%);
+          -webkit-mask-image: linear-gradient(
+            to right,
+            black 85%,
+            transparent 100%
+          );
         }
       `}</style>
 
@@ -276,9 +291,6 @@ export default function MapPage() {
             <h3 className="text-xl font-black text-gray-900 mb-2 italic tracking-tighter">
               Connection Lost
             </h3>
-            <p className="text-gray-500 text-sm mb-8 max-w-[240px]">
-              We couldn&apos;t reach Kivo. Check your internet.
-            </p>
             <button
               onClick={() => refetch()}
               className="px-8 py-4 bg-black text-white rounded-[24px] font-black text-xs uppercase tracking-widest active:scale-95 transition-all shadow-xl"
@@ -370,100 +382,83 @@ export default function MapPage() {
       </div>
 
       <div className="flex-1 relative">
-        {/* MOBILE TOP BAR - CLEANED SEARCH */}
-        <div className="md:hidden fixed top-0 left-0 w-full z-[70] bg-white/60 backdrop-blur-lg px-3 py-2 flex items-center gap-2 border-b border-gray-100">
+        <div className="md:hidden fixed top-0 left-0 w-full z-[70] bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
           <div className="relative flex-1">
             <Search
-              size={14}
+              size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
             />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search local..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-100/80 text-xs border-transparent outline-none font-bold focus:ring-1 focus:ring-gray-300"
+              placeholder="what do you feel like doing?"
+              className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-100 text-sm border-transparent outline-none font-bold text-gray-900 focus:ring-2 focus:ring-black/5"
             />
-          </div>
-          <div className="flex bg-gray-100/50 p-0.5 rounded-xl border border-gray-200/50">
-            {(["event", "activity"] as KindType[]).map((kind) => (
-              <button
-                key={kind}
-                onClick={() =>
-                  setActiveKind(activeKind === kind ? "all" : kind)
-                }
-                className={`px-3 py-1.5 rounded-[10px] text-[9px] font-black uppercase transition-all border ${activeKind === kind ? "bg-white border-gray-200 text-black shadow-sm" : "border-transparent text-gray-400"}`}
-              >
-                {kind}
-              </button>
-            ))}
           </div>
           <button
             onClick={() => setMenuOpen(true)}
-            className="w-9 h-9 flex items-center rounded-xl bg-white/80 justify-center text-gray-900 border border-gray-100 shadow-sm font-black"
+            className="w-11 h-11 flex items-center rounded-2xl bg-white justify-center text-gray-900 border border-gray-100 shadow-sm font-black active:scale-95"
           >
             ☰
           </button>
         </div>
 
-        {/* TOP CONTROLS CONTAINER - LESS LOUD STYLE */}
-        <div className="fixed top-[58px] md:top-[100px] left-0 w-full z-[40] flex flex-col gap-2 items-center">
-          {/* TIME FILTER - OUTLINE STYLE */}
-          <div className="w-[94%] max-w-sm flex justify-between items-center bg-white/80 backdrop-blur-xl shadow-lg rounded-2xl p-1 border border-white/40">
-            {(["all", "upcoming", "ongoing"] as FilterType[]).map((status) => (
-              <button
-                key={status}
-                onClick={() => setActiveFilter(status)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all border ${activeFilter === status ? "bg-white border-gray-100 text-black shadow-sm" : "border-transparent opacity-50 hover:opacity-100"}`}
-              >
-                <span className="text-sm">
-                  {status === "upcoming"
-                    ? "📅"
-                    : status === "ongoing"
-                      ? "🔥"
-                      : "🌐"}
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-tighter">
-                  {status}
-                </span>
-              </button>
-            ))}
-          </div>
+        <div className="fixed top-[68px] md:top-[100px] left-0 w-full z-[40] flex flex-col items-center">
+          <div className="w-full max-w-6xl px-4 relative">
+            <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar scroll-mask pb-4 pt-1">
+              {/* LIVE/UPCOMING TOGGLE */}
+              <div className="flex bg-white shadow-xl rounded-2xl p-1.5 border border-gray-100 shrink-0">
+                {(["ongoing", "upcoming"] as FilterType[]).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setActiveFilter(status)}
+                    className={`relative flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${
+                      activeFilter === status
+                        ? "bg-black text-white shadow-lg"
+                        : "bg-transparent text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className="text-sm">
+                      {status === "ongoing" ? "🔥" : "📅"}
+                    </span>
+                    <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">
+                      {status === "ongoing" ? "Live" : "Upcoming"}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
-          {/* HOTSPOT CATEGORY FILTER - GHOST STYLE */}
-          <AnimatePresence>
-            {showHotspots && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="w-full overflow-x-auto hide-scrollbar px-4"
-              >
-                <div className="flex gap-2 mx-auto w-max py-1">
-                  {HOTSPOT_CATEGORIES.map((cat) => {
-                    const isActive = activeHotspotCat === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => setActiveHotspotCat(cat.id)}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-tighter whitespace-nowrap transition-all duration-300 border shadow-md ${
-                          isActive
-                            ? "bg-white text-black border-gray-200 scale-105"
-                            : "bg-white/70 text-gray-400 border-white/50 backdrop-blur-md"
-                        }`}
+              <div className="w-px h-10 bg-gray-200 mx-1 shrink-0" />
+
+              {/* CONSOLIDATED CATEGORIES */}
+              <div className="flex gap-2">
+                {HOTSPOT_CATEGORIES.map((cat) => {
+                  const isActive = activeHotspotCat === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        setActiveHotspotCat(cat.id);
+                        setShowHotspots(true);
+                      }}
+                      className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-all border shrink-0 ${
+                        isActive
+                          ? "bg-white text-black border-black shadow-md scale-105"
+                          : "bg-white text-gray-500 border-gray-100 hover:border-gray-300 shadow-sm"
+                      }`}
+                    >
+                      <span
+                        className={isActive ? "text-black" : "text-gray-300"}
                       >
-                        <span
-                          className={`transition-colors duration-300 ${isActive ? "text-black" : "text-gray-300"}`}
-                        >
-                          {cat.icon}
-                        </span>
-                        {cat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                        {cat.icon}
+                      </span>
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         <RealMap
@@ -475,30 +470,32 @@ export default function MapPage() {
           hotspotCategory={activeHotspotCat}
         />
 
-        <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10 flex flex-col gap-3">
+        <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10 flex flex-col gap-4">
+          <button
+            onClick={() => setShowGuide(true)}
+            className="w-14 h-14 bg-white rounded-full shadow-2xl flex items-center justify-center text-gray-400 border-2 border-gray-200 active:scale-90 transition-all"
+          >
+            <Info size={24} />
+          </button>
           <button
             onClick={() => setShowHotspots(!showHotspots)}
-            className={`w-12 h-12 rounded-2xl shadow-xl flex items-center justify-center transition-all border border-white/50 active:scale-95 ${
+            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all border-2 active:scale-90 ${
               showHotspots
-                ? "bg-white text-black border-gray-100"
-                : "bg-white/95 text-gray-400 border-transparent"
+                ? "bg-black text-white border-black"
+                : "bg-white text-gray-400 border-gray-200"
             }`}
           >
-            <Flame
-              size={22}
-              className={showHotspots ? "fill-black text-black" : ""}
-            />
+            <Flame size={24} fill={showHotspots ? "currentColor" : "none"} />
           </button>
 
           <button
             onClick={handleLocateUser}
-            className="w-12 h-12 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center text-black border border-white/50 active:scale-95 transition-all"
+            className="w-14 h-14 bg-white rounded-full shadow-2xl flex items-center justify-center text-black border-2 border-gray-200 active:scale-90 transition-all"
           >
-            <LocateFixed size={22} />
+            <LocateFixed size={24} />
           </button>
         </div>
 
-        {/* HOTSPOT PREVIEW CARD */}
         <AnimatePresence>
           {selectedHotspot && (
             <motion.div
@@ -507,64 +504,67 @@ export default function MapPage() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="fixed inset-x-4 bottom-32 z-[110] md:inset-x-auto md:right-10 md:bottom-32 md:w-80"
             >
-              <div className="bg-white rounded-[32px] shadow-2xl border border-gray-100 p-6 overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-4">
-                  <button
-                    onClick={() => setSelectedHotspot(null)}
-                    className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:text-black transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-black border border-gray-100">
-                    <Flame size={24} fill="currentColor" />
+              <div className="bg-white rounded-[32px] shadow-2xl border border-gray-100 overflow-hidden relative">
+                {/* HOTSPOT IMAGE */}
+                <div className="relative h-44 w-full">
+                  <Image
+                    src={
+                      selectedHotspot.image ||
+                      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"
+                    }
+                    alt={selectedHotspot.title || "Hotspot"}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 320px"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute top-0 right-0 p-4 z-[120]">
+                    {" "}
+                    {/* Added high z-index */}
+                    <button
+                      onClick={() => setSelectedHotspot(null)}
+                      className="w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all active:scale-90"
+                    >
+                      <X size={20} />
+                    </button>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded-md">
+                  <div className="absolute bottom-4 left-4">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-md">
                       {selectedHotspot.category || "Hotspot"}
                     </span>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-black shrink-0">
+                      <Flame size={20} fill="currentColor" />
+                    </div>
                     <h3 className="text-xl font-black text-gray-900 tracking-tighter leading-tight">
                       {selectedHotspot.title || selectedHotspot.name}
                     </h3>
                   </div>
-                </div>
 
-                <p className="text-gray-500 text-xs font-medium leading-relaxed mb-6">
-                  {selectedHotspot.description ||
-                    "One of the most active hubs in the city. Expect high energy and frequent events here."}
-                </p>
+                  <p className="text-gray-500 text-xs font-medium leading-relaxed mb-6">
+                    {selectedHotspot.description ||
+                      "An active hub in the city. Expect high energy and frequent events."}
+                  </p>
 
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3 text-gray-400">
-                    <MapPin size={14} className="shrink-0" />
-                    <span className="text-[11px] font-bold truncate">
-                      {selectedHotspot.address || "Port Harcourt, Rivers State"}
-                    </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="py-3 bg-gray-50 text-gray-900 font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-100 transition-all border border-gray-100">
+                      <Navigation size={12} /> Directions
+                    </button>
+                    <button className="py-3 bg-black text-white font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+                      View Details
+                    </button>
                   </div>
-                  <div className="flex items-center gap-3 text-gray-400">
-                    <Info size={14} className="shrink-0" />
-                    <span className="text-[11px] font-bold">
-                      Typically active 24/7
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button className="py-3 bg-gray-50 text-gray-900 font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-100 transition-all border border-gray-100">
-                    <Navigation size={12} /> Directions
-                  </button>
-                  <button className="py-3 bg-black text-white font-black rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-black/10 active:scale-95 transition-all">
-                    View Details
-                  </button>
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* EVENT PREVIEW SHEET */}
         <AnimatePresence>
           {selected && (
             <motion.div
@@ -620,7 +620,9 @@ export default function MapPage() {
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${(selected as any).timeStatus === "ongoing" ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}
                       />
-                      {(selected as any).timeStatus}
+                      {(selected as any).timeStatus === "ongoing"
+                        ? "live"
+                        : "upcoming"}
                     </span>
                   </div>
                   <h2 className="font-black text-2xl text-gray-900 mt-3">
@@ -657,7 +659,7 @@ export default function MapPage() {
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, 800px"
-                  className="object-cover rounded-[28px] shadow-sm border border-gray-50"
+                  className="object-cover rounded-[28px] border border-gray-50"
                 />
               </div>
 
@@ -717,9 +719,7 @@ export default function MapPage() {
                 onClick={() => router.push(`/discover/${selected.id}`)}
                 className="w-full py-5 bg-black text-white font-black rounded-3xl shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest"
               >
-                {selected.type === "activity"
-                  ? "View Activity"
-                  : "View Details"}
+                View Details
               </button>
             </motion.div>
           )}

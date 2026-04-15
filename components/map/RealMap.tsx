@@ -17,6 +17,38 @@ import { Event } from "@/lib/events";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string;
 
+// Helper to get category-specific markers
+const getHotspotMarkerHTML = (category: string, title: string) => {
+  const icons: Record<string, string> = {
+    nightlife: "🎵",
+    lounge: "🍻",
+    dining: "🍴",
+    cafe: "☕",
+    workspace: "💻",
+    arts: "🎨",
+    wellness: "🧘",
+    retail: "🛍️",
+  };
+
+  const icon = icons[category] || "📍";
+
+  return `
+    <div class="group relative cursor-pointer transition-transform active:scale-90 flex items-center justify-center">
+      <div class="absolute inset-0 bg-orange-400/30 rounded-full blur-lg group-hover:bg-orange-400/50 transition-all"></div>
+      
+      <div class="relative w-9 h-9 bg-white border-2 border-orange-500 rounded-full shadow-xl flex items-center justify-center text-lg hover:border-black transition-colors">
+        ${icon}
+      </div>
+
+      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-[9px] font-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-tighter shadow-2xl pointer-events-none z-50">
+        ${title}
+      </div>
+      
+      <div class="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-1.5 bg-orange-500"></div>
+    </div>
+  `;
+};
+
 const statusColors: Record<string, string> = {
   upcoming: "#EAB308", // Yellow
   ongoing: "#059669", // Green
@@ -81,19 +113,17 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
         zoom: 11.5,
       });
 
-      // User Location Config
       const geolocate = new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
         showUserHeading: true,
-        showUserLocation: true, // This enables the blue dot
+        showUserLocation: true,
       });
 
       map.addControl(geolocate);
       geolocateControlRef.current = geolocate;
 
       map.on("load", () => {
-        // Setup Sources for Clustering
         map.addSource("events", {
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
@@ -141,20 +171,18 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           type: "circle",
           source: "events",
           filter: ["!", ["has", "point_count"]],
-          paint: { "circle-radius": 0 }, // We use custom HTML markers instead
+          paint: { "circle-radius": 0 },
         });
 
         mapRef.current = map;
         setIsMapReady(true);
-
-        // Auto-trigger location on start
         geolocate.trigger();
       });
 
       return () => map.remove();
     }, []);
 
-    // --- HOTSPOT MANAGEMENT ---
+    // --- HOTSPOT MANAGEMENT (Updated with Icon Logic) ---
     useEffect(() => {
       if (!isMapReady || !mapRef.current) return;
 
@@ -175,15 +203,12 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           if (result.status === "success") {
             result.data.hotspots.forEach((spot: any) => {
               const el = document.createElement("div");
-              el.className =
-                "group relative cursor-pointer transition-transform active:scale-90";
-              el.innerHTML = `
-                <div class="absolute -inset-3 bg-orange-500/20 rounded-full blur-md animate-pulse"></div>
-                <div class="relative w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full shadow-lg"></div>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-[8px] font-black rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-tighter shadow-xl pointer-events-none">
-                  🔥 ${spot.title || spot.name || "Kivo Hotspot"}
-                </div>
-              `;
+
+              // Apply the new category-based HTML
+              el.innerHTML = getHotspotMarkerHTML(
+                spot.category,
+                spot.title || spot.name || "Kivo Hotspot",
+              );
 
               el.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -198,7 +223,10 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
                 });
               });
 
-              const marker = new mapboxgl.Marker({ element: el })
+              const marker = new mapboxgl.Marker({
+                element: el,
+                anchor: "bottom", // Anchor at the bottom of the "stem"
+              })
                 .setLngLat([
                   spot.location.coordinates[0],
                   spot.location.coordinates[1],
@@ -279,7 +307,6 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           markersRef.current[id] = { marker, status: currentStatus };
         });
 
-        // Clean up old markers
         Object.keys(markersRef.current).forEach((id) => {
           if (!activeIds.has(id)) {
             markersRef.current[id].marker.remove();
