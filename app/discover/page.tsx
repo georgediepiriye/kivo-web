@@ -144,6 +144,7 @@ export default function DiscoverPage() {
           const formatted = result.data.events.map((e: any) => ({
             ...e,
             id: e._id,
+            // Updated to handle nested location coordinates [lng, lat]
             lat: e.location.coordinates[1],
             lng: e.location.coordinates[0],
             date: new Date(e.startDate).toISOString().split("T")[0],
@@ -486,49 +487,59 @@ export default function DiscoverPage() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12">
               <AnimatePresence mode="popLayout">
-                {current.map((e) => (
-                  <motion.div
-                    key={e.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                  >
-                    <div
-                      onClick={() => router.push(`/discover/${e.id}`)}
-                      className="h-full relative cursor-pointer group rounded-[32px] overflow-hidden bg-white border border-gray-100 hover:shadow-2xl transition-all duration-500"
-                    >
-                      {/* STATUS TAG OVERLAY */}
-                      <div className="absolute top-6 left-6 z-20 flex gap-2">
-                        <span
-                          className={`px-4 py-2 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 text-white ${
-                            e.timeStatus === "ongoing"
-                              ? "bg-green-500/90"
-                              : e.timeStatus === "upcoming"
-                                ? "bg-amber-500/90"
-                                : "bg-gray-500/90"
-                          }`}
-                        >
-                          <span
-                            className={`w-1 h-1 rounded-full bg-white ${e.timeStatus === "ongoing" ? "animate-pulse" : ""}`}
-                          />
-                          {e.timeStatus}
-                        </span>
-                      </div>
+                {current.map((e) => {
+                  // Calculate logical display price for the updated structure
+                  const displayPrice = e.isFree
+                    ? "Free"
+                    : e.ticketTiers?.length > 0
+                      ? `₦${Math.min(...e.ticketTiers.map((t: any) => t.price)).toLocaleString()}`
+                      : e.externalTicketLink
+                        ? "Available"
+                        : "Paid";
 
-                      <EventCard
-                        {...e}
-                        organizerName={`Posted by ${e.organizerName}`}
-                        organizerImage={e.organizerImage}
-                        location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away`}
-                        time={formatEventTime(e.startDate)}
-                        buttonText={
-                          e.isFree ? "Free" : `₦${e.price.toLocaleString()}`
-                        }
-                      />
-                    </div>
-                  </motion.div>
-                ))}
+                  return (
+                    <motion.div
+                      key={e.id}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                      <div
+                        onClick={() => router.push(`/discover/${e.id}`)}
+                        className="h-full relative cursor-pointer group rounded-[32px] overflow-hidden bg-white border border-gray-100 hover:shadow-2xl transition-all duration-500"
+                      >
+                        {/* STATUS TAG OVERLAY */}
+                        <div className="absolute top-6 left-6 z-20 flex gap-2">
+                          <span
+                            className={`px-4 py-2 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 text-white ${
+                              e.timeStatus === "ongoing"
+                                ? "bg-green-500/90"
+                                : e.timeStatus === "upcoming"
+                                  ? "bg-amber-500/90"
+                                  : "bg-gray-500/90"
+                            }`}
+                          >
+                            <span
+                              className={`w-1 h-1 rounded-full bg-white ${e.timeStatus === "ongoing" ? "animate-pulse" : ""}`}
+                            />
+                            {e.timeStatus}
+                          </span>
+                        </div>
+
+                        <EventCard
+                          {...e}
+                          // Pass neighborhood from nested location
+                          location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away • ${e.location.neighborhood}`}
+                          organizerName={`Posted by ${e.organizerName}`}
+                          organizerImage={e.organizerImage}
+                          time={formatEventTime(e.startDate)}
+                          buttonText={displayPrice}
+                        />
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
 
@@ -591,8 +602,8 @@ export default function DiscoverPage() {
                   organizerName={`Posted by ${e.organizerName}`}
                   organizerImage={e.organizerImage}
                   time={formatEventTime(e.startDate)}
-                  location="Port Harcourt"
-                  buttonText="Join"
+                  location={e.location.neighborhood}
+                  buttonText={e.isFree ? "Free" : "View"}
                 />
               </div>
             ))}
