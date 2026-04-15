@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   RotateCcw,
   Tag,
+  Globe,
 } from "lucide-react";
 
 import Navbar from "@/components/layout/NavBar";
@@ -41,6 +42,7 @@ export default function EventDetailsPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
   const [hasReserved, setHasReserved] = useState(false);
 
   useEffect(() => {
@@ -98,9 +100,16 @@ export default function EventDetailsPage() {
     }
 
     if (event?.externalTicketLink) {
-      window.open(event.externalTicketLink, "_blank");
+      setIsExternalModalOpen(true);
     } else {
       setIsCheckoutOpen(true);
+    }
+  };
+
+  const confirmExternalRedirect = () => {
+    if (event?.externalTicketLink) {
+      window.open(event.externalTicketLink, "_blank");
+      setIsExternalModalOpen(false);
     }
   };
 
@@ -167,6 +176,7 @@ export default function EventDetailsPage() {
         event={event}
       />
 
+      {/* Auth Modal */}
       <AnimatePresence>
         {isAuthModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
@@ -214,6 +224,59 @@ export default function EventDetailsPage() {
                   className="w-full py-4 bg-white text-gray-400 font-black rounded-2xl text-xs uppercase tracking-widest"
                 >
                   Maybe Later
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* External Link Warning Modal */}
+      <AnimatePresence>
+        {isExternalModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsExternalModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-white rounded-t-[40px] sm:rounded-[40px] p-8 shadow-2xl"
+            >
+              <button
+                onClick={() => setIsExternalModalOpen(false)}
+                className="absolute top-6 right-6 p-2 bg-gray-50 rounded-full text-gray-400"
+              >
+                <X size={20} />
+              </button>
+              <div className="w-16 h-16 bg-blue-50 rounded-3xl flex items-center justify-center text-blue-600 mb-6">
+                <Globe size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+                Leaving Kivo
+              </h3>
+              <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                You are being redirected to an external site to complete your
+                booking. Please review their terms and safety policies.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={confirmExternalRedirect}
+                  className="w-full py-4 bg-black text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                >
+                  Continue to Site
+                </button>
+                <button
+                  onClick={() => setIsExternalModalOpen(false)}
+                  className="w-full py-4 bg-white text-gray-400 font-black rounded-2xl text-xs uppercase tracking-widest"
+                >
+                  Cancel
                 </button>
               </div>
             </motion.div>
@@ -463,7 +526,7 @@ export default function EventDetailsPage() {
         </div>
       </main>
 
-      {!isCheckoutOpen && !isAuthModalOpen && (
+      {!isCheckoutOpen && !isAuthModalOpen && !isExternalModalOpen && (
         <div className="lg:hidden fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-[100]">
           <div className="max-w-md mx-auto flex items-center gap-4">
             <div className="flex-1">

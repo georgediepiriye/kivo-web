@@ -273,7 +273,7 @@ export default function CreateEventPage() {
             <div className="space-y-4">
               <input
                 type="text"
-                placeholder="Event Title"
+                placeholder="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none transition-all font-medium"
@@ -294,7 +294,7 @@ export default function CreateEventPage() {
               </div>
 
               <textarea
-                placeholder="What's the plan? Give us the vibes..."
+                placeholder="Provide a detailed description..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-[24px] focus:bg-white focus:border-[#715800] outline-none h-40 resize-none transition-all font-medium"
@@ -344,7 +344,7 @@ export default function CreateEventPage() {
 
           {/* Section 2: Professional Ticketing */}
           <section className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-lg font-black flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-[#715800]/10 flex items-center justify-center text-[#715800] text-xs">
                   2
@@ -358,7 +358,7 @@ export default function CreateEventPage() {
                     setIsFree(nextState);
                     if (!nextState && ticketTiers.length === 0) addTier();
                   }}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full border-2 transition-all active:scale-95 ${
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-full border-2 transition-all active:scale-95 whitespace-nowrap ${
                     isFree
                       ? "bg-green-50 border-green-100 text-green-700 hover:bg-green-100"
                       : "bg-[#715800] border-[#715800] text-white hover:opacity-90 shadow-lg shadow-[#715800]/20"
@@ -547,7 +547,7 @@ export default function CreateEventPage() {
                 value={location}
                 onChange={(val) => setLocation(val)}
                 onRetrieve={handleRetrieve}
-                placeholder="Where is the move?"
+                placeholder="Search location"
                 options={{ proximity: [7.0354, 4.8156], country: "NG" }}
                 theme={{
                   variables: {
@@ -713,7 +713,7 @@ export default function CreateEventPage() {
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
-                  Launch Move
+                  Submit
                   <ChevronRight
                     size={20}
                     className="group-hover:translate-x-1 transition-transform"
