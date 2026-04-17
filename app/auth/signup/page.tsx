@@ -162,7 +162,7 @@ export default function SignUpPage() {
                     : "border-gray-100 text-gray-400 hover:border-gray-200"
                 }`}
               >
-                Event Organizer
+                Organizer/Host
               </button>
             </div>
           </div>

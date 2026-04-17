@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -7,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  Calendar as CalendarIcon,
   SlidersHorizontal,
   ChevronRight,
   Flame,
@@ -31,6 +29,7 @@ const USER_LOCATION = { lat: 4.819, lng: 7.038 };
 
 // HELPER: Calculate Distance
 const getKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  if (!lat1 || !lng1 || !lat2 || !lng2) return "0.0";
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLng = (lng2 - lng1) * (Math.PI / 180);
@@ -74,11 +73,10 @@ const getDateRange = (filter: string) => {
   return null;
 };
 
-// HELPER: Human Readable Date (Today/Tomorrow/Editorial)
+// HELPER: Human Readable Date
 const formatEventTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const now = new Date();
-
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const eventDay = new Date(
     date.getFullYear(),
@@ -86,8 +84,9 @@ const formatEventTime = (dateStr: string) => {
     date.getDate(),
   );
 
-  const diffTime = eventDay.getTime() - today.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(
+    (eventDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   let dayLabel;
   if (diffDays === 0) dayLabel = "Today";
@@ -104,7 +103,6 @@ const formatEventTime = (dateStr: string) => {
     minute: "2-digit",
     hour12: true,
   });
-
   return `${dayLabel} • ${timeLabel}`;
 };
 
@@ -115,7 +113,6 @@ export default function DiscoverPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Filter States
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   const [dist, setDist] = useState(25);
@@ -127,9 +124,9 @@ export default function DiscoverPage() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "upcoming" | "ongoing" | "past"
   >("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "event" | "activity">(
-    "all",
-  );
+  const [mediumFilter, setMediumFilter] = useState<
+    "all" | "physical" | "online"
+  >("all");
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -144,10 +141,10 @@ export default function DiscoverPage() {
           const formatted = result.data.events.map((e: any) => ({
             ...e,
             id: e._id,
-            // Updated to handle nested location coordinates [lng, lat]
-            lat: e.location.coordinates[1],
-            lng: e.location.coordinates[0],
+            lat: e.location?.coordinates?.[1] || null,
+            lng: e.location?.coordinates?.[0] || null,
             date: new Date(e.startDate).toISOString().split("T")[0],
+            isOnline: e.medium === "online" || e.isOnline === true,
             organizerName: e.organizer?.name || "Kivo Host",
             organizerImage:
               e.organizer?.image ||
@@ -170,7 +167,6 @@ export default function DiscoverPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Reset to first page when filters change
   useEffect(() => {
     setPage(1);
   }, [
@@ -180,7 +176,7 @@ export default function DiscoverPage() {
     dateFilter,
     priceFilter,
     statusFilter,
-    typeFilter,
+    mediumFilter,
   ]);
 
   const filtered = useMemo(() => {
@@ -190,15 +186,18 @@ export default function DiscoverPage() {
     return events.filter((e) => {
       const matchSearch = e.title.toLowerCase().includes(searchLower);
       const matchCat = activeCat === "all" || e.category === activeCat;
-      const distanceValue = parseFloat(
-        getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng),
-      );
-      const matchDist = distanceValue <= dist;
       const matchPrice =
         priceFilter === "all" ||
         (priceFilter === "free" ? e.isFree : !e.isFree);
 
-      const matchType = typeFilter === "all" || e.type === typeFilter;
+      const matchMedium =
+        mediumFilter === "all" ||
+        (mediumFilter === "online" ? e.isOnline : !e.isOnline);
+
+      const distanceValue = e.lat
+        ? parseFloat(getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng))
+        : 0;
+      const matchDist = e.isOnline || distanceValue <= dist;
 
       let matchDate = true;
       if (dateFilter) {
@@ -218,7 +217,6 @@ export default function DiscoverPage() {
 
       const matchStatus =
         statusFilter === "all" || statusFilter === currentStatus;
-
       e.timeStatus = currentStatus;
 
       return (
@@ -228,7 +226,7 @@ export default function DiscoverPage() {
         matchPrice &&
         matchDate &&
         matchStatus &&
-        matchType
+        matchMedium
       );
     });
   }, [
@@ -239,7 +237,7 @@ export default function DiscoverPage() {
     dateFilter,
     priceFilter,
     statusFilter,
-    typeFilter,
+    mediumFilter,
   ]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -255,12 +253,15 @@ export default function DiscoverPage() {
     setDateFilter("");
     setPriceFilter("all");
     setStatusFilter("all");
-    setTypeFilter("all");
+    setMediumFilter("all");
     setPage(1);
   };
 
   const trendingEvents = useMemo(
-    () => [...events].sort((a, b) => b.attendees - a.attendees).slice(0, 4),
+    () =>
+      [...events]
+        .sort((a, b) => (b.attendees || 0) - (a.attendees || 0))
+        .slice(0, 4),
     [events],
   );
   const techEvents = useMemo(
@@ -308,7 +309,7 @@ export default function DiscoverPage() {
                   {filtered.length} results
                 </p>
                 <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">
-                  within {dist}km
+                  {mediumFilter === "online" ? "Worldwide" : `within ${dist}km`}
                 </p>
               </div>
               <button
@@ -327,11 +328,8 @@ export default function DiscoverPage() {
         </div>
       </section>
 
-      {/* STICKY CATEGORY BAR */}
       <div
-        className={`sticky top-[72px] md:top-[80px] z-[40] bg-white/80 backdrop-blur-xl border-b border-gray-100 transition-all ${
-          isScrolled ? "shadow-md py-2" : "py-4"
-        }`}
+        className={`sticky top-[72px] md:top-[80px] z-[40] bg-white/80 backdrop-blur-xl border-b border-gray-100 transition-all ${isScrolled ? "shadow-md py-2" : "py-4"}`}
       >
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-2 px-2">
@@ -381,49 +379,27 @@ export default function DiscoverPage() {
                     />
                   </div>
                 </div>
-
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 block ml-1">
-                    When
+                    Location Type
                   </label>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                      {["today", "tomorrow", "weekend"].map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() =>
-                            setDateFilter(dateFilter === opt ? "" : opt)
-                          }
-                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${dateFilter === opt ? "bg-[#715800] text-white border-[#715800]" : "bg-white text-gray-400 border-gray-100"}`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="relative">
-                      <CalendarIcon
-                        className={`absolute left-4 top-1/2 -translate-y-1/2 ${dateFilter && !["today", "tomorrow", "weekend"].includes(dateFilter) ? "text-[#715800]" : "text-gray-300"}`}
-                        size={16}
-                      />
-                      <input
-                        type="date"
-                        value={
-                          ["today", "tomorrow", "weekend"].includes(dateFilter)
-                            ? ""
-                            : dateFilter
-                        }
-                        onChange={(e) => setDateFilter(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-[#715800]/20 font-bold text-gray-600 uppercase text-[10px]"
-                      />
-                    </div>
-                  </div>
+                  <select
+                    value={mediumFilter}
+                    onChange={(e) => setMediumFilter(e.target.value as any)}
+                    className="w-full px-6 py-4 bg-white rounded-2xl border-none shadow-sm font-black text-[10px] uppercase tracking-widest text-gray-500"
+                  >
+                    <option value="all">Any Medium</option>
+                    <option value="physical">Physical</option>
+                    <option value="online">Online</option>
+                  </select>
                 </div>
-
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 block ml-1">
                     Distance ({dist}km)
                   </label>
-                  <div className="bg-white px-4 rounded-2xl shadow-sm h-[56px] flex items-center">
+                  <div
+                    className={`bg-white px-4 rounded-2xl shadow-sm h-[56px] flex items-center ${mediumFilter === "online" ? "opacity-30 pointer-events-none" : ""}`}
+                  >
                     <input
                       type="range"
                       min="1"
@@ -434,17 +410,7 @@ export default function DiscoverPage() {
                     />
                   </div>
                 </div>
-
                 <div className="sm:col-span-2 lg:col-span-4 flex flex-wrap gap-3 pt-6 border-t border-gray-200 mt-2">
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as any)}
-                    className="bg-white px-6 py-3 rounded-xl border-none shadow-sm font-black text-[10px] uppercase tracking-widest text-gray-500"
-                  >
-                    <option value="all">Any Type</option>
-                    <option value="event">Events Only</option>
-                    <option value="activity">Activities Only</option>
-                  </select>
                   <select
                     value={priceFilter}
                     onChange={(e) => setPriceFilter(e.target.value as any)}
@@ -485,175 +451,174 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16 mb-20 items-stretch">
               <AnimatePresence mode="popLayout">
-                {current.map((e) => {
-                  // Calculate logical display price for the updated structure
-                  const displayPrice = e.isFree
-                    ? "Free"
-                    : e.ticketTiers?.length > 0
-                      ? `₦${Math.min(...e.ticketTiers.map((t: any) => t.price)).toLocaleString()}`
-                      : e.externalTicketLink
-                        ? "Available"
+                {current.map((e, index) => {
+                  const minPrice =
+                    e.ticketTiers?.length > 0
+                      ? Math.min(...e.ticketTiers.map((t: any) => t.price))
+                      : null;
+
+                  // FIXED: Changed 'let' to 'const' as requested
+                  const displayPrice = e.externalTicketLink
+                    ? "Paid"
+                    : e.isFree
+                      ? "Free"
+                      : minPrice !== null
+                        ? `₦${minPrice.toLocaleString()}`
                         : "Paid";
 
                   return (
                     <motion.div
                       key={e.id}
                       layout
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.5, delay: index * 0.05 }}
+                      className="flex flex-col h-full cursor-pointer"
+                      onClick={() => router.push(`/discover/${e.id}`)}
                     >
-                      <div
-                        onClick={() => router.push(`/discover/${e.id}`)}
-                        className="h-full relative cursor-pointer group rounded-[32px] overflow-hidden bg-white border border-gray-100 hover:shadow-2xl transition-all duration-500"
-                      >
-                        {/* STATUS TAG OVERLAY */}
-                        <div className="absolute top-6 left-6 z-20 flex gap-2">
-                          <span
-                            className={`px-4 py-2 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 text-white ${
-                              e.timeStatus === "ongoing"
-                                ? "bg-green-500/90"
-                                : e.timeStatus === "upcoming"
-                                  ? "bg-amber-500/90"
-                                  : "bg-gray-500/90"
-                            }`}
-                          >
-                            <span
-                              className={`w-1 h-1 rounded-full bg-white ${e.timeStatus === "ongoing" ? "animate-pulse" : ""}`}
-                            />
-                            {e.timeStatus}
-                          </span>
-                        </div>
-
-                        <EventCard
-                          {...e}
-                          // Pass neighborhood from nested location
-                          location={`${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km away • ${e.location.neighborhood}`}
-                          organizerName={`Posted by ${e.organizerName}`}
-                          organizerImage={e.organizerImage}
-                          time={formatEventTime(e.startDate)}
-                          buttonText={displayPrice}
-                        />
-                      </div>
+                      <EventCard
+                        {...e}
+                        location={
+                          e.isOnline
+                            ? "Online Move"
+                            : `${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km • ${e.location?.neighborhood || "PH"}`
+                        }
+                        time={formatEventTime(e.startDate)}
+                        buttonText={displayPrice}
+                        isOnline={e.isOnline}
+                      />
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             </div>
 
-            {/* PAGINATION CONTROLS */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 mb-20">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="w-12 h-12 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-all"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <div className="flex gap-2">
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`w-12 h-12 rounded-2xl text-xs font-black transition-all ${
-                        page === i + 1
-                          ? "bg-gray-900 text-white shadow-lg"
-                          : "bg-white text-gray-400 border border-gray-100 hover:bg-gray-50"
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+              <div className="flex flex-col items-center justify-center gap-6 mt-12 mb-24 px-6 w-full">
+                <div className="flex items-center justify-center gap-2 sm:gap-4 w-full">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => {
+                      setPage((p) => p - 1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 bg-white hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-90"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div className="flex gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-2 px-1 items-center">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setPage(i + 1);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl text-[10px] sm:text-xs font-black transition-all shadow-sm ${page === i + 1 ? "bg-gray-900 text-white" : "bg-white text-gray-400 border border-gray-100"}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => {
+                      setPage((p) => p + 1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 bg-white hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-90"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
                 </div>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="w-12 h-12 rounded-2xl border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-all"
-                >
-                  <ChevronRight size={20} />
-                </button>
               </div>
             )}
           </>
         )}
 
-        {/* HORIZONTAL SECTIONS (The Hot List) */}
-        <section className="mt-12 mb-24 overflow-visible">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600 shrink-0">
-              <Flame size={24} />
+        <section className="mt-12 mb-24">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-14 h-14 bg-orange-100 rounded-[22px] flex items-center justify-center text-orange-600 shrink-0 shadow-sm">
+              <Flame size={28} />
             </div>
-            <h2 className="text-3xl font-black tracking-tighter text-gray-900">
+            <h2 className="text-4xl font-black tracking-tighter text-gray-900 leading-none">
               The Hot List
             </h2>
           </div>
-          <div className="flex gap-6 overflow-x-auto no-scrollbar pb-8 -mx-6 px-6">
+          <div className="flex gap-8 overflow-x-auto no-scrollbar pb-12 -mx-6 px-6">
             {trendingEvents.map((e) => (
               <div
                 key={e.id}
-                className="min-w-[280px] sm:min-w-[340px] md:min-w-[400px]"
+                onClick={() => router.push(`/discover/${e.id}`)}
+                className="min-w-[320px] sm:min-w-[380px] md:min-w-[440px] cursor-pointer"
               >
                 <EventCard
                   {...e}
-                  category={e.category as any}
-                  organizerName={`Posted by ${e.organizerName}`}
-                  organizerImage={e.organizerImage}
                   time={formatEventTime(e.startDate)}
-                  location={e.location.neighborhood}
-                  buttonText={e.isFree ? "Free" : "View"}
+                  location={e.location?.neighborhood || "PH"}
+                  buttonText="View"
+                  isOnline={e.isOnline}
                 />
               </div>
             ))}
           </div>
         </section>
 
-        {/* LIST SECTION (Professional Moves) */}
-        <section className="mb-24 bg-gray-50 -mx-6 px-6 py-16 md:py-20 md:rounded-[64px] border-y md:border border-gray-100">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-                <Briefcase size={24} />
+        <section className="mb-24 bg-gray-50 -mx-6 px-6 py-20 md:rounded-[80px] border-y md:border border-gray-100 relative overflow-hidden">
+          <div className="max-w-6xl mx-auto relative z-10">
+            <div className="flex items-center gap-4 mb-14">
+              <div className="w-14 h-14 bg-blue-100 rounded-[22px] flex items-center justify-center text-blue-600 shrink-0">
+                <Briefcase size={28} />
               </div>
               <div>
-                <h2 className="text-3xl font-black tracking-tighter text-gray-900">
+                <h2 className="text-4xl font-black tracking-tighter text-gray-900 leading-none">
                   Professional Moves
                 </h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Connect & Grow
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mt-2">
+                  The Startup Pulse
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {techEvents.map((e) => (
                 <div
                   key={e.id}
                   onClick={() => router.push(`/discover/${e.id}`)}
-                  className="bg-white p-5 rounded-[28px] border border-gray-100 flex items-center gap-4 hover:shadow-xl transition-all group cursor-pointer"
+                  className="bg-white p-6 rounded-[32px] border border-gray-100 flex items-center gap-6 hover:shadow-2xl transition-all group cursor-pointer"
                 >
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gray-100 overflow-hidden shrink-0 relative">
                     <Image
                       src={e.image}
                       fill
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                      className="object-cover group-hover:scale-110 transition-transform duration-700"
                       alt={e.title}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-black text-gray-900 truncate mb-1 md:text-lg">
+                    <h4 className="font-black text-gray-900 truncate mb-1 text-xl tracking-tight">
                       {e.title}
                     </h4>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                       {formatEventTime(e.startDate)}
                     </p>
-                    <p className="text-[9px] font-bold text-[#715800] uppercase tracking-wider">
-                      Posted by {e.organizerName}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src={e.organizerImage}
+                        width={16}
+                        height={16}
+                        className="rounded-full"
+                        alt=""
+                      />
+                      <span className="text-[9px] font-black text-[#715800] uppercase">
+                        {e.organizerName}
+                      </span>
+                    </div>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-[#715800] group-hover:text-white transition-all">
-                    <ChevronRight size={20} />
+                  <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-[#715800] group-hover:text-white transition-all">
+                    <ChevronRight size={24} />
                   </div>
                 </div>
               ))}
@@ -661,54 +626,55 @@ export default function DiscoverPage() {
           </div>
         </section>
 
-        {/* SPOTLIGHT (Music) */}
         <section className="mb-24">
-          <div className="bg-gray-900 rounded-[40px] md:rounded-[48px] p-8 md:p-16 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#715800] opacity-20 blur-[120px]" />
-            <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12 text-center lg:text-left">
-              <div className="lg:w-1/2">
+          <div className="bg-gray-900 rounded-[56px] p-10 md:p-20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#715800] opacity-10 blur-[150px]" />
+            <div className="relative z-10 flex flex-col lg:flex-row items-center gap-16">
+              <div className="lg:w-1/2 text-center lg:text-left">
                 <Music
-                  className="text-[#715800] mb-6 mx-auto lg:mx-0"
-                  size={48}
+                  className="text-[#715800] mb-8 mx-auto lg:mx-0"
+                  size={56}
                 />
-                <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-6 leading-[0.9]">
+                <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-8 leading-[0.85]">
                   The Rhythm <br /> of the City.
                 </h2>
-                <button className="w-full sm:w-auto px-10 py-5 bg-white text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-transform flex items-center justify-center gap-2">
-                  Explore Music <ArrowRight size={16} />
+                <button
+                  onClick={() => setActiveCat("music")}
+                  className="w-full sm:w-auto px-12 py-6 bg-white text-black rounded-3xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all flex items-center justify-center gap-3"
+                >
+                  Explore Music Scene <ArrowRight size={18} />
                 </button>
               </div>
-              <div className="lg:w-1/2 w-full space-y-4">
+              <div className="lg:w-1/2 w-full space-y-6">
                 {musicSpotlight.map((e) => (
                   <div
                     key={e.id}
                     onClick={() => router.push(`/discover/${e.id}`)}
-                    className="bg-white/5 border border-white/10 backdrop-blur-md p-5 rounded-[28px] flex items-center gap-5 cursor-pointer hover:bg-white/10 transition-colors"
+                    className="bg-white/5 border border-white/10 p-6 rounded-[36px] flex items-center gap-6 cursor-pointer hover:bg-white/10 transition-all group"
                   >
-                    <div className="w-16 h-16 rounded-xl bg-gray-800 overflow-hidden shrink-0 border border-white/10 relative">
+                    <div className="w-20 h-20 rounded-2xl bg-gray-800 overflow-hidden shrink-0 border border-white/10 relative">
                       <Image
                         src={e.image}
                         fill
-                        className="w-full h-full object-cover opacity-80"
+                        className="object-cover opacity-80"
                         alt={e.title}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-black text-white text-lg tracking-tight truncate">
+                      <h4 className="font-black text-white text-xl tracking-tight truncate mb-1">
                         {e.title}
                       </h4>
-                      <div className="flex flex-col gap-1 mt-1">
-                        <div className="flex items-center gap-2">
-                          <Sparkles size={12} className="text-[#715800]" />
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            {formatEventTime(e.startDate)}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-bold text-[#715800]/80 uppercase tracking-wider ml-5">
-                          Posted by {e.organizerName}
+                      <div className="flex items-center gap-3">
+                        <Sparkles size={14} className="text-[#715800]" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          {formatEventTime(e.startDate)}
                         </span>
                       </div>
                     </div>
+                    <ArrowRight
+                      className="text-white/20 group-hover:text-[#715800] transition-colors"
+                      size={24}
+                    />
                   </div>
                 ))}
               </div>

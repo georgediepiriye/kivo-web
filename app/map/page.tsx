@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useRef, useState, useMemo, useCallback } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -20,6 +20,9 @@ import {
   ShoppingBag,
   Palette,
   Info,
+  Ticket,
+  Globe,
+  MapPin,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -91,6 +94,7 @@ export default function MapPage() {
         id: e._id,
         lat: e.location?.coordinates[1],
         lng: e.location?.coordinates[0],
+        isOnline: e.medium === "online" || e.isOnline === true,
         organizerName: e.organizer?.name || "Kivo Host",
         organizerImage:
           e.organizer?.image ||
@@ -121,6 +125,35 @@ export default function MapPage() {
         return matchesSearch && matchesFilter;
       });
   }, [events, search, activeFilter]);
+
+  const displayPrice = useMemo(() => {
+    if (!selected) return "";
+    if (selected.isFree === true) return "Free";
+    const tiers = selected.ticketTiers;
+    if (Array.isArray(tiers) && tiers.length > 0) {
+      const prices = tiers
+        .map((t: any) => t?.price)
+        .filter((p: any) => typeof p === "number");
+      if (prices.length > 0) {
+        const min = Math.min(...prices);
+        return min === 0 ? "Free" : `₦${min.toLocaleString()}`;
+      }
+    }
+    if (selected.startingPrice && selected.startingPrice > 0) {
+      return `₦${selected.startingPrice.toLocaleString()}`;
+    }
+    if (selected.isPublic !== false) {
+      if (
+        selected.externalTicketLink ||
+        selected.joinLink ||
+        selected.ticketingType === "internal"
+      ) {
+        return "Paid";
+      }
+    }
+    if (selected.isPublic === false) return "Invite Only";
+    return "Free";
+  }, [selected]);
 
   const toggleLike = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -192,7 +225,6 @@ export default function MapPage() {
         }
       `}</style>
 
-      {/* Loaders */}
       <AnimatePresence>
         {isLoading && (
           <motion.div
@@ -212,7 +244,6 @@ export default function MapPage() {
       </div>
 
       <div className="flex-1 relative">
-        {/* Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 w-full z-[70] bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
           <div className="relative flex-1">
             <Search
@@ -227,18 +258,16 @@ export default function MapPage() {
             />
           </div>
           <button
-            onClick={() => setMenuOpen(true)}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="w-11 h-11 flex items-center rounded-2xl bg-white justify-center text-gray-900 border border-gray-100 shadow-sm font-black"
           >
             ☰
           </button>
         </div>
 
-        {/* Filter Overlay */}
         <div className="fixed top-[68px] md:top-[100px] left-0 w-full z-[40] flex flex-col items-center">
           <div className="w-full max-w-6xl px-4 relative">
             <div className="flex items-center gap-3 overflow-x-auto hide-scrollbar scroll-mask pb-4 pt-1">
-              {/* Event Filter Toggle */}
               <div className="flex bg-white/90 backdrop-blur-xl shadow-xl rounded-full p-1 border border-gray-100 shrink-0">
                 {(["ongoing", "upcoming"] as FilterType[]).map((status) => (
                   <button
@@ -257,7 +286,6 @@ export default function MapPage() {
 
               <div className="w-px h-6 bg-gray-200/60 mx-1 shrink-0" />
 
-              {/* Hotspot Categories */}
               <div className="flex gap-2">
                 {HOTSPOT_CATEGORIES.map((cat) => {
                   const isActive = activeHotspotCat === cat.id;
@@ -297,11 +325,10 @@ export default function MapPage() {
           hotspotCategory={activeHotspotCat}
         />
 
-        {/* Map Controls - Ultra Compact */}
         <div className="absolute bottom-36 right-4 z-[40] md:bottom-10 md:right-10 flex flex-col gap-2.5">
           <button
             onClick={() => setShowGuide(true)}
-            className="w-10 h-10 bg-white/95 backdrop-blur-md rounded-full shadow-lg flex items-center justify-center text-gray-400 border border-gray-100 active:scale-90 transition-all"
+            className="w-10 h-10 bg-white/95 backdrop-blur-md rounded-full shadow-lg flex items-center justify-center text-gray-400 border border-gray-100 active:scale-90"
           >
             <Info size={18} />
           </button>
@@ -313,13 +340,12 @@ export default function MapPage() {
           </button>
           <button
             onClick={handleLocateUser}
-            className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-black border border-gray-100 active:scale-90 transition-all"
+            className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-black border border-gray-100 active:scale-90"
           >
             <LocateFixed size={18} />
           </button>
         </div>
 
-        {/* Hotspot Drawer */}
         <AnimatePresence>
           {selectedHotspot && (
             <motion.div
@@ -352,7 +378,7 @@ export default function MapPage() {
                   <h3 className="text-xl font-black text-gray-900 tracking-tighter mb-2">
                     {selectedHotspot.title || selectedHotspot.name}
                   </h3>
-                  <p className="text-gray-500 text-xs mb-6">
+                  <p className="text-gray-500 text-xs mb-6 leading-relaxed">
                     {selectedHotspot.description ||
                       "An active hub in the city."}
                   </p>
@@ -360,8 +386,8 @@ export default function MapPage() {
                     <button className="py-3 bg-gray-50 text-gray-900 font-black rounded-2xl text-[10px] uppercase border border-gray-100 flex items-center justify-center gap-2">
                       <Navigation size={12} /> Directions
                     </button>
-                    <button className="py-3 bg-black text-white font-black rounded-2xl text-[10px] uppercase">
-                      Details
+                    <button className="py-3 bg-black text-white font-black rounded-2xl text-[10px] uppercase tracking-widest">
+                      Explore
                     </button>
                   </div>
                 </div>
@@ -370,7 +396,6 @@ export default function MapPage() {
           )}
         </AnimatePresence>
 
-        {/* Event Detail Modal */}
         <AnimatePresence>
           {selected && (
             <motion.div
@@ -384,6 +409,7 @@ export default function MapPage() {
                 className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 cursor-pointer"
                 onClick={() => setSelected(null)}
               />
+
               <div className="flex items-center justify-between mb-6 bg-gray-50 p-3 rounded-3xl border border-gray-100">
                 <div className="flex items-center gap-3">
                   <div className="relative h-10 w-10">
@@ -415,7 +441,7 @@ export default function MapPage() {
 
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase">
                       👥 {selected.attendees || 0} going
                     </span>
@@ -427,15 +453,26 @@ export default function MapPage() {
                       />{" "}
                       {selected.timeStatus}
                     </span>
+                    {/* MEDIUM BADGE */}
+                    <span
+                      className={`text-[10px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1.5 ${selected.isOnline ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"}`}
+                    >
+                      {selected.isOnline ? (
+                        <Globe size={10} />
+                      ) : (
+                        <MapPin size={10} />
+                      )}
+                      {selected.isOnline ? "Online" : "Physical"}
+                    </span>
                   </div>
-                  <h2 className="font-black text-2xl text-gray-900 mt-3">
+                  <h2 className="font-black text-2xl text-gray-900 mt-3 tracking-tight">
                     {selected.title}
                   </h2>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={(e) => toggleLike(e, selected._id)}
-                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                    className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center active:scale-90"
                   >
                     <Heart
                       size={18}
@@ -463,6 +500,13 @@ export default function MapPage() {
                   priority
                   className="object-cover rounded-[28px] border border-gray-50"
                 />
+                {/* FLOATING ONLINE BADGE */}
+                {selected.isOnline && (
+                  <div className="absolute top-4 left-4 px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
+                    <Globe size={10} className="animate-pulse" />
+                    Online Move
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -488,37 +532,68 @@ export default function MapPage() {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <Ticket size={18} className="text-black" />
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase">
+                      Entry
+                    </p>
+                    <p
+                      className={`text-xs font-black ${selected.isFree ? "text-green-600" : "text-gray-900"}`}
+                    >
+                      {displayPrice}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  {selected.isOnline ? (
+                    <Globe size={18} className="text-blue-600" />
+                  ) : (
+                    <MapPin size={18} className="text-black" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-gray-400 uppercase">
+                      Location
+                    </p>
+                    <p className="text-xs font-bold text-gray-900 truncate">
+                      {selected.isOnline
+                        ? "Worldwide"
+                        : selected.location?.neighborhood || "Port Harcourt"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-4 mb-6">
-                <div className="flex-1 bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
-                    Entry Fee
-                  </p>
-                  <p
-                    className={`text-sm font-black ${selected.isFree ? "text-green-600" : "text-gray-900"}`}
-                  >
-                    {/* FIXED: Optional chaining added below to prevent toLocaleString crash */}
-                    {selected.isFree
-                      ? "FREE"
-                      : `₦${selected.price?.toLocaleString() || "0"}`}
-                  </p>
-                </div>
-                <div className="flex-1 bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">
-                    Category
-                  </p>
+              <div className="flex gap-4 mb-8">
+                <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles size={12} className="text-gray-400" />
+                    <p className="text-[10px] text-gray-400 font-black uppercase">
+                      Vibe
+                    </p>
+                  </div>
                   <p className="text-sm font-black text-gray-900 capitalize">
                     {selected.category}
+                  </p>
+                </div>
+                <div className="flex-1 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Globe size={12} className="text-gray-400" />
+                    <p className="text-[10px] text-gray-400 font-black uppercase">
+                      Medium
+                    </p>
+                  </div>
+                  <p className="text-sm font-black text-gray-900 capitalize">
+                    {selected.isOnline ? "Remote" : "In-Person"}
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={() => router.push(`/discover/${selected.id}`)}
-                className="w-full py-5 bg-black text-white font-black rounded-3xl shadow-xl active:scale-95 transition-all uppercase text-xs tracking-widest"
+                className="w-full py-5 bg-black text-white font-black rounded-3xl shadow-xl active:scale-95 transition-all uppercase text-[10px] tracking-[0.2em]"
               >
-                View Details
+                Go to Event Page
               </button>
             </motion.div>
           )}
