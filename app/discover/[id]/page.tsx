@@ -14,18 +14,17 @@ import {
   Share2,
   Info,
   Loader2,
-  CheckCircle2,
   Ticket,
   AlertTriangle,
   ExternalLink,
-  X,
-  LogIn,
   ShieldCheck,
   RotateCcw,
   Tag,
   Globe,
-  Link as LinkIcon,
   Monitor,
+  ChevronDown,
+  ChevronUp,
+  Users,
 } from "lucide-react";
 
 import Navbar from "@/components/layout/NavBar";
@@ -41,9 +40,8 @@ export default function EventDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isExternalModalOpen, setIsExternalModalOpen] = useState(false);
   const [hasReserved, setHasReserved] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -56,12 +54,12 @@ export default function EventDetailsPage() {
 
         if (result.status === "success") {
           const data = result.data.event;
-          // Normalize online status
+          // Normalize online status logic
           data.isOnline = data.medium === "online" || data.isOnline === true;
           setEvent(data);
         }
       } catch (error) {
-        console.error("Failed to fetch event:", error);
+        console.error("Kivo Detail Fetch Error:", error);
       } finally {
         setLoading(false);
       }
@@ -81,50 +79,58 @@ export default function EventDetailsPage() {
     return "past";
   }, [event]);
 
-  const canReserve = useMemo(() => {
-    if (!event || event.isCancelled) return false;
-    if (event.externalTicketLink || event.joinLink) return true;
-    if (event.isFree) return true;
-    return event.ticketTiers && event.ticketTiers.length > 0;
-  }, [event]);
-
+  // PROFESSIONAL PRICE LABEL LOGIC
   const displayPrice = useMemo(() => {
     if (!event) return "";
-    if (event.isFree) return "Free";
+    if (event.ticketingType === "none" || event.isFree) return "Free";
+
     if (event.ticketTiers && event.ticketTiers.length > 0) {
-      const minPrice = Math.min(...event.ticketTiers.map((t: any) => t.price));
-      return `From ₦${minPrice.toLocaleString()}`;
+      const prices = event.ticketTiers.map((t: any) => t.price);
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+
+      if (min === 0 && max > 0) return "Free +";
+      if (min === 0 && max === 0) return "Free";
+      if (min === max) return `₦${min.toLocaleString()}`;
+      return `From ₦${min.toLocaleString()}`;
     }
+
     return event.externalTicketLink || event.joinLink ? "Paid" : "Invite Only";
   }, [event]);
 
-  const handleCTA = () => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (event?.allowAnonymous === false && !token) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    if (event?.externalTicketLink || event?.joinLink) {
-      setIsExternalModalOpen(true);
-    } else if (canReserve) {
-      setIsCheckoutOpen(true);
-    }
+  // SMART BUTTON TEXT LOGIC
+  const getButtonContent = () => {
+    if (event.isCancelled) return "Event Cancelled";
+    if (hasReserved) return "Spot Reserved";
+    if (event.externalTicketLink) return "Get External Tickets";
+    if (event.isOnline) return "Join Event Online";
+    if (displayPrice === "Free") return "Register for Free";
+    return "Reserve a Spot";
   };
 
-  const confirmExternalRedirect = () => {
-    const target = event?.externalTicketLink || event?.joinLink;
-    if (target) {
-      window.open(target, "_blank");
-      setIsExternalModalOpen(false);
+  const handleCTA = () => {
+    if (event.isCancelled) return;
+
+    if (event.externalTicketLink) {
+      window.open(event.externalTicketLink, "_blank");
+      return;
     }
+
+    if (event.joinLink && event.isOnline) {
+      window.open(event.joinLink, "_blank");
+      return;
+    }
+
+    setIsCheckoutOpen(true);
   };
 
   const handleOpenMap = () => {
     if (event?.location?.coordinates) {
       const [lng, lat] = event.location.coordinates;
-      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      window.open(url, "_blank");
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+        "_blank",
+      );
     }
   };
 
@@ -134,7 +140,7 @@ export default function EventDetailsPage() {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-[#715800]" size={40} />
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-            Loading...
+            Syncing Details...
           </p>
         </div>
       </div>
@@ -170,8 +176,6 @@ export default function EventDetailsPage() {
         event={event}
       />
 
-      {/* Modals remain the same logic... */}
-
       <main className="flex-1 pt-20 pb-32 md:pt-28 md:pb-24">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
@@ -186,12 +190,6 @@ export default function EventDetailsPage() {
               Back to City
             </button>
             <div className="flex gap-2">
-              <button
-                onClick={() => alert("Report submitted.")}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-red-50 text-red-400 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest"
-              >
-                <AlertTriangle size={16} /> Report
-              </button>
               <button className="p-3 rounded-2xl bg-white border border-gray-100 text-gray-400 hover:text-[#715800] transition-all">
                 <Share2 size={18} />
               </button>
@@ -200,6 +198,7 @@ export default function EventDetailsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-8 space-y-12">
+              {/* Main Visual */}
               <div className="relative aspect-[16/9] w-full rounded-[40px] overflow-hidden shadow-2xl border border-gray-100">
                 <Image
                   src={
@@ -211,244 +210,212 @@ export default function EventDetailsPage() {
                   priority
                 />
                 <div className="absolute top-6 left-6 flex gap-2">
-                  <span className="px-5 py-2.5 bg-white/90 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase text-gray-900">
+                  <span className="px-5 py-2.5 bg-white/90 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase text-gray-900 shadow-sm">
                     {event.category}
                   </span>
                   <span
-                    className={`px-5 py-2.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 ${timeStatus === "ongoing" ? "bg-green-500/90 text-white" : "bg-gray-500/90 text-white"}`}
+                    className={`px-5 py-2.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 text-white ${timeStatus === "ongoing" ? "bg-green-500/90" : "bg-gray-900/80"}`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full bg-white ${timeStatus === "ongoing" ? "animate-pulse" : ""}`}
-                    />{" "}
+                    />
                     {timeStatus}
                   </span>
-                  {/* ONLINE BADGE ON IMAGE */}
-                  {event.isOnline && (
-                    <span className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg">
-                      <Globe size={14} className="animate-spin-slow" /> Online
-                    </span>
-                  )}
                 </div>
               </div>
 
-              {(event.joinLink || event.externalTicketLink) && (
-                <div className="p-6 bg-blue-50/50 rounded-[32px] border border-blue-100 flex items-center justify-between gap-4">
+              {/* Header Info */}
+              <div className="space-y-6">
+                <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-gray-900 leading-[0.85] uppercase italic">
+                  {event.title}
+                </h1>
+
+                <div className="flex flex-wrap gap-6 py-8 border-y border-gray-100">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-[#715800] border border-gray-100">
+                      <Calendar size={24} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                        When
+                      </p>
+                      <p className="font-black text-gray-900">
+                        {formattedDate}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-[#715800] border border-gray-100">
                       {event.isOnline ? (
-                        <Globe size={20} />
+                        <Globe size={24} />
                       ) : (
-                        <LinkIcon size={20} />
+                        <MapPin size={24} />
                       )}
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase text-blue-600">
-                        {event.isOnline ? "Meeting Link" : "Event Link"}
+                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                        Where
                       </p>
-                      <p className="text-sm font-bold text-gray-900 truncate max-w-[200px] md:max-w-md">
-                        {event.joinLink || event.externalTicketLink}
+                      <p className="font-black text-gray-900">
+                        {event.isOnline
+                          ? "Virtual / Online"
+                          : event.location?.neighborhood}
                       </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() =>
-                      window.open(
-                        event.joinLink || event.externalTicketLink,
-                        "_blank",
-                      )
-                    }
-                    className="p-3 bg-white text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                  >
-                    <ExternalLink size={18} />
-                  </button>
-                </div>
-              )}
-
-              <div className="p-6 bg-gray-50 rounded-[32px] border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <Image
-                    src={
-                      event.organizer?.image ||
-                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${event.organizer?.name}`
-                    }
-                    width={64}
-                    height={64}
-                    className="rounded-full border-2 border-white shadow-sm"
-                    alt=""
-                  />
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-[#715800]">
-                      Posted By
-                    </p>
-                    <h4 className="text-xl font-black text-gray-900">
-                      {event.organizer?.name || "Kivo Host"}
-                    </h4>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsFollowing(!isFollowing)}
-                  className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${isFollowing ? "bg-gray-200 text-gray-600" : "bg-[#715800] text-white active:scale-95"}`}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-gray-900 leading-[0.9]">
-                  {event.title}
-                </h1>
-                <div className="flex flex-wrap gap-6 py-6 border-y border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-[#715800]/5 flex items-center justify-center text-[#715800]">
-                      <Calendar size={20} />
-                    </div>
-                    <div className="font-bold text-gray-900">
-                      <p className="text-[10px] font-black uppercase text-gray-400">
-                        Date & Time
-                      </p>
-                      {formattedDate}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center ${event.isOnline ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-900"}`}
-                    >
-                      {event.isOnline ? (
-                        <Globe size={20} />
-                      ) : (
-                        <MapPin size={20} />
-                      )}
-                    </div>
-                    <div className="font-bold text-gray-900">
-                      <p className="text-[10px] font-black uppercase text-gray-400">
-                        Location
-                      </p>
-                      {event.isOnline
-                        ? "Online Move (Worldwide)"
-                        : `${event.location?.neighborhood}, Port Harcourt`}
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Description Section */}
               <div className="space-y-4">
                 <h3 className="text-xl font-black tracking-tight text-gray-900 flex items-center gap-2">
-                  <Info size={20} className="text-[#715800]" /> Overview
+                  <Info size={20} className="text-[#715800]" /> Event Intel
                 </h3>
-                <p className="text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
-                  {event.description}
-                </p>
+                <div className="relative">
+                  <p
+                    className={`text-gray-600 leading-relaxed font-medium whitespace-pre-wrap transition-all duration-500 ${!showFullDescription ? "max-h-[200px] overflow-hidden" : "max-h-full"}`}
+                  >
+                    {event.description}
+                  </p>
+                  {!showFullDescription && event.description?.length > 350 && (
+                    <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-[#FDFDFD] via-[#FDFDFD]/80 to-transparent pointer-events-none" />
+                  )}
+                </div>
+                {event.description?.length > 350 && (
+                  <button
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#715800] hover:scale-105 transition-transform"
+                  >
+                    {showFullDescription ? (
+                      <>
+                        <ChevronUp size={14} /> Collapse
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={14} /> Expand Description
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
-              {/* Ticket Section logic remains... */}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6">
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Rules & Policy
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 text-sm font-bold text-gray-700">
-                      <ShieldCheck size={18} className="text-green-600" /> Age:{" "}
-                      {event.ageRestriction}
-                    </div>
-                    <div className="flex items-center gap-3 text-sm font-bold text-gray-700">
-                      <RotateCcw size={18} className="text-amber-600" /> Refund:{" "}
-                      {event.refundPolicy} Policy
+              {/* Ticket Tiers Section */}
+              {event.ticketingType === "internal" &&
+                event.ticketTiers?.length > 0 && (
+                  <div className="space-y-6 pt-6">
+                    <h3 className="text-xl font-black tracking-tight text-gray-900 flex items-center gap-2">
+                      <Ticket size={20} className="text-[#715800]" /> Ticket
+                      Tiers
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {event.ticketTiers.map((tier: any) => (
+                        <div
+                          key={tier._id}
+                          className="p-6 bg-white border border-gray-100 rounded-[32px] shadow-sm hover:border-[#715800]/30 transition-all"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <h4 className="font-black text-gray-900 uppercase text-sm tracking-tight">
+                              {tier.name}
+                            </h4>
+                            <span className="text-lg font-black text-[#715800]">
+                              {tier.price === 0
+                                ? "FREE"
+                                : `₦${tier.price.toLocaleString()}`}
+                            </span>
+                          </div>
+                          {tier.description && (
+                            <p className="text-xs text-gray-400 mb-4 font-medium line-clamp-2">
+                              {tier.description}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase text-gray-400 mb-2">
+                            <span>Availability</span>
+                            <span>
+                              {Math.max(0, tier.capacity - (tier.sold || 0))}{" "}
+                              Left
+                            </span>
+                          </div>
+                          <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gray-900 transition-all"
+                              style={{
+                                width: `${Math.min(100, ((tier.sold || 0) / tier.capacity) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                    Medium & Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    <span
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 ${event.isOnline ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500"}`}
-                    >
-                      {event.isOnline ? (
-                        <Monitor size={10} />
-                      ) : (
-                        <MapPin size={10} />
-                      )}{" "}
-                      {event.isOnline ? "Online" : "Physical"}
-                    </span>
-                    {event.tags?.map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1.5 bg-gray-100 rounded-lg text-[10px] font-black uppercase text-gray-500 flex items-center gap-1"
-                      >
-                        <Tag size={10} /> {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+                )}
             </div>
 
+            {/* Sidebar Sticky Card */}
             <div className="lg:col-span-4 space-y-6">
-              <div className="hidden lg:block sticky top-28 p-8 bg-white rounded-[40px] border border-gray-100 shadow-xl space-y-8">
-                <div>
-                  <p className="text-[10px] font-black uppercase text-gray-400">
-                    Entry
-                  </p>
-                  <p className="text-2xl font-black text-gray-900">
-                    {displayPrice}
-                  </p>
+              <div className="hidden lg:block sticky top-28 p-8 bg-white rounded-[40px] border border-gray-100 shadow-2xl shadow-black/5 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                      Pricing
+                    </p>
+                    <p className="text-3xl font-black text-gray-900 uppercase italic">
+                      {displayPrice}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300">
+                    <Users size={20} />
+                  </div>
                 </div>
+
                 <button
                   onClick={handleCTA}
-                  disabled={!canReserve || hasReserved}
-                  className={`w-full py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 ${!canReserve ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black active:scale-95"}`}
+                  disabled={event.isCancelled || hasReserved}
+                  className={`w-full py-6 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg ${event.isCancelled ? "bg-red-50 text-red-400 cursor-not-allowed" : "bg-gray-900 text-white hover:bg-black active:scale-95 shadow-black/20"}`}
                 >
-                  {event.isCancelled
-                    ? "Cancelled"
-                    : hasReserved
-                      ? "Reserved"
-                      : event.isOnline
-                        ? "Join Online Move"
-                        : "Reserve a spot"}
+                  {getButtonContent()}
                 </button>
 
-                <div className="pt-6 border-t border-gray-100">
-                  <p className="text-[10px] font-black uppercase text-gray-400 mb-4 flex items-center justify-between">
-                    {event.isOnline ? "Online Medium" : "Venue Location"}
+                <div className="pt-8 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                      Venue Map
+                    </p>
                     {!event.isOnline && (
-                      <span
+                      <button
                         onClick={handleOpenMap}
-                        className="text-[#715800] cursor-pointer hover:underline"
+                        className="text-[10px] font-black uppercase text-[#715800] hover:underline"
                       >
-                        View Map
-                      </span>
+                        Get Directions
+                      </button>
                     )}
-                  </p>
+                  </div>
 
-                  {event.isOnline ? (
-                    <div className="h-48 rounded-[24px] bg-blue-50 flex flex-col items-center justify-center text-center p-6 border border-blue-100">
-                      <Globe
-                        size={40}
-                        className="text-blue-600 mb-4 animate-pulse"
-                      />
-                      <p className="text-xs font-black uppercase text-blue-600">
-                        This move is virtual
-                      </p>
-                      <p className="text-[10px] text-blue-400 font-bold mt-1">
-                        Join from anywhere in the world
+                  {!event.isOnline ? (
+                    <div className="space-y-4">
+                      <div className="h-56 rounded-[32px] overflow-hidden bg-gray-100 border border-gray-100">
+                        <EventMap
+                          latitude={event.location?.coordinates?.[1]}
+                          longitude={event.location?.coordinates?.[0]}
+                        />
+                      </div>
+                      <p className="text-xs font-bold text-gray-500 leading-relaxed px-2 italic">
+                        {event.location?.address ||
+                          "Location details provided upon registration."}
                       </p>
                     </div>
                   ) : (
-                    <>
-                      <div className="h-48 rounded-[24px] overflow-hidden bg-gray-100 border border-gray-100">
-                        <EventMap
-                          latitude={event.location.coordinates[1]}
-                          longitude={event.location.coordinates[0]}
-                        />
+                    <div className="h-56 rounded-[32px] bg-blue-50 flex flex-col items-center justify-center text-center p-8 border border-blue-100">
+                      <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center text-blue-600 shadow-sm mb-4">
+                        <Monitor size={32} />
                       </div>
-                      <p className="mt-4 text-xs font-bold text-gray-600 flex items-start gap-2">
-                        <MapPin size={14} className="shrink-0 text-[#715800]" />{" "}
-                        {event.location?.address}
+                      <p className="text-xs font-black uppercase text-blue-600 tracking-widest">
+                        Virtual Move
                       </p>
-                    </>
+                      <p className="text-[10px] font-bold text-blue-400 mt-2">
+                        Access link will be visible in your profile after
+                        registration.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -457,28 +424,16 @@ export default function EventDetailsPage() {
         </div>
       </main>
 
-      {!isCheckoutOpen && !isAuthModalOpen && !isExternalModalOpen && (
-        <div className="lg:hidden fixed bottom-0 left-0 w-full p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-[100]">
-          <div className="max-w-md mx-auto flex items-center gap-4">
-            <div className="flex-1 text-lg font-black text-gray-900">
-              {displayPrice}
-            </div>
-            <button
-              onClick={handleCTA}
-              disabled={!canReserve || hasReserved}
-              className="flex-[2] py-4 bg-gray-900 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
-            >
-              {event.isCancelled
-                ? "Cancelled"
-                : hasReserved
-                  ? "Joined"
-                  : event.isOnline
-                    ? "Join Online"
-                    : "Reserve Spot"}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Mobile Floating Action */}
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[100]">
+        <button
+          onClick={handleCTA}
+          className="w-full py-5 bg-gray-900 text-white rounded-3xl font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+        >
+          {getButtonContent()} — {displayPrice}
+        </button>
+      </div>
+
       <MobileNav />
       <Footer />
     </div>

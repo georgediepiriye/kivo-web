@@ -454,19 +454,23 @@ export default function DiscoverPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16 mb-20 items-stretch">
               <AnimatePresence mode="popLayout">
                 {current.map((e, index) => {
+                  const prices = e.ticketTiers?.map((t: any) => t.price) || [];
                   const minPrice =
-                    e.ticketTiers?.length > 0
-                      ? Math.min(...e.ticketTiers.map((t: any) => t.price))
-                      : null;
+                    prices.length > 0 ? Math.min(...prices) : null;
+                  const maxPrice =
+                    prices.length > 0 ? Math.max(...prices) : null;
 
-                  // FIXED: Changed 'let' to 'const' as requested
-                  const displayPrice = e.externalTicketLink
-                    ? "Paid"
-                    : e.isFree
-                      ? "Free"
-                      : minPrice !== null
-                        ? `₦${minPrice.toLocaleString()}`
-                        : "Paid";
+                  const getDisplayPrice = () => {
+                    if (e.externalTicketLink) return "Paid";
+                    if (e.ticketingType === "none") return "Free";
+                    if (minPrice === 0 && maxPrice! > 0) return "Free +";
+                    if (minPrice === 0 && maxPrice === 0) return "Free";
+                    if (minPrice !== null)
+                      return `₦${minPrice.toLocaleString()}`;
+                    return "Free";
+                  };
+
+                  const displayPrice = getDisplayPrice();
 
                   return (
                     <motion.div
@@ -483,7 +487,7 @@ export default function DiscoverPage() {
                         {...e}
                         location={
                           e.isOnline
-                            ? "Online Move"
+                            ? "Online"
                             : `${getKm(USER_LOCATION.lat, USER_LOCATION.lng, e.lat, e.lng)}km • ${e.location?.neighborhood || "PH"}`
                         }
                         time={formatEventTime(e.startDate)}

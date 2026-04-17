@@ -128,31 +128,37 @@ export default function MapPage() {
 
   const displayPrice = useMemo(() => {
     if (!selected) return "";
-    if (selected.isFree === true) return "Free";
-    const tiers = selected.ticketTiers;
-    if (Array.isArray(tiers) && tiers.length > 0) {
+
+    const tiers = selected.ticketTiers || [];
+    const hasTiers = Array.isArray(tiers) && tiers.length > 0;
+
+    // 1. If it has tiers, calculate based on the range
+    if (hasTiers) {
       const prices = tiers
-        .map((t: any) => t?.price)
-        .filter((p: any) => typeof p === "number");
-      if (prices.length > 0) {
-        const min = Math.min(...prices);
-        return min === 0 ? "Free" : `₦${min.toLocaleString()}`;
-      }
+        .map((t: any) => Number(t.price))
+        .filter((p: number) => !isNaN(p));
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+
+      if (min === 0 && max > 0) return "Free +";
+      if (min === 0 && max === 0) return "Free";
+      if (min === max) return `₦${min.toLocaleString()}`;
+      return `From ₦${min.toLocaleString()}`;
     }
-    if (selected.startingPrice && selected.startingPrice > 0) {
+
+    // 2. Fallback to startingPrice if tiers are missing
+    if (selected.startingPrice > 0) {
       return `₦${selected.startingPrice.toLocaleString()}`;
     }
-    if (selected.isPublic !== false) {
-      if (
-        selected.externalTicketLink ||
-        selected.joinLink ||
-        selected.ticketingType === "internal"
-      ) {
-        return "Paid";
-      }
-    }
-    if (selected.isPublic === false) return "Invite Only";
-    return "Free";
+
+    // 3. Check explicit free flags
+    if (selected.isFree || selected.ticketingType === "none") return "Free";
+
+    // 4. Check for external links (usually paid)
+    if (selected.externalTicketLink || selected.joinLink) return "Paid";
+
+    // 5. Default based on privacy
+    return selected.isPublic === false ? "Invite Only" : "Free";
   }, [selected]);
 
   const toggleLike = useCallback((e: React.MouseEvent, id: string) => {
@@ -253,7 +259,7 @@ export default function MapPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search spots..."
+              placeholder="what do you want to do?"
               className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-100 text-sm border-transparent outline-none font-bold text-gray-900"
             />
           </div>
@@ -504,7 +510,7 @@ export default function MapPage() {
                 {selected.isOnline && (
                   <div className="absolute top-4 left-4 px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
                     <Globe size={10} className="animate-pulse" />
-                    Online Move
+                    Online
                   </div>
                 )}
               </div>
