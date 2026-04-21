@@ -48,7 +48,7 @@ export default function EventDetailsPage() {
       try {
         setLoading(true);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/V1/events/${params.id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/events/${params.id}`,
         );
         const result = await res.json();
 
@@ -99,13 +99,25 @@ export default function EventDetailsPage() {
   }, [event]);
 
   // SMART BUTTON TEXT LOGIC
+  // SMART BUTTON TEXT LOGIC
   const getButtonContent = () => {
     if (event.isCancelled) return "Event Cancelled";
     if (hasReserved) return "Spot Reserved";
     if (event.externalTicketLink) return "Get External Tickets";
     if (event.isOnline) return "Join Event Online";
-    if (displayPrice === "Free") return "Register for Free";
-    return "Reserve a Spot";
+
+    // NEW LOGIC: Check if any tier actually costs money
+    const hasPaidTiers = event.ticketTiers?.some((tier: any) => tier.price > 0);
+
+    if (event.isFree || (event.ticketingType === "none" && !hasPaidTiers)) {
+      return "Register for Free";
+    }
+
+    if (hasPaidTiers) {
+      return "Get Tickets"; // Or "Reserve a Spot"
+    }
+
+    return "Register for Free";
   };
 
   const handleCTA = () => {
@@ -208,16 +220,24 @@ export default function EventDetailsPage() {
                   fill
                   className="object-cover"
                   priority
+                  // Optimized sizes for performance
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
                 />
                 <div className="absolute top-6 left-6 flex gap-2">
                   <span className="px-5 py-2.5 bg-white/90 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase text-gray-900 shadow-sm">
                     {event.category}
                   </span>
                   <span
-                    className={`px-5 py-2.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 text-white ${timeStatus === "ongoing" ? "bg-green-500/90" : "bg-gray-900/80"}`}
+                    className={`px-5 py-2.5 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 text-white ${
+                      timeStatus === "ongoing"
+                        ? "bg-green-500/90"
+                        : "bg-gray-900/80"
+                    }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full bg-white ${timeStatus === "ongoing" ? "animate-pulse" : ""}`}
+                      className={`w-1.5 h-1.5 rounded-full bg-white ${
+                        timeStatus === "ongoing" ? "animate-pulse" : ""
+                      }`}
                     />
                     {timeStatus}
                   </span>
@@ -259,7 +279,11 @@ export default function EventDetailsPage() {
                       <p className="font-black text-gray-900">
                         {event.isOnline
                           ? "Virtual / Online"
-                          : event.location?.neighborhood}
+                          : event.location?.address +
+                              "," +
+                              " " +
+                              event.location?.neighborhood ||
+                            "Location details upon registration"}
                       </p>
                     </div>
                   </div>
@@ -269,7 +293,7 @@ export default function EventDetailsPage() {
               {/* Description Section */}
               <div className="space-y-4">
                 <h3 className="text-xl font-black tracking-tight text-gray-900 flex items-center gap-2">
-                  <Info size={20} className="text-[#715800]" /> Event Intel
+                  <Info size={20} className="text-[#715800]" /> Overview
                 </h3>
                 <div className="relative">
                   <p
@@ -399,7 +423,10 @@ export default function EventDetailsPage() {
                         />
                       </div>
                       <p className="text-xs font-bold text-gray-500 leading-relaxed px-2 italic">
-                        {event.location?.address ||
+                        {event.location?.address +
+                          "," +
+                          " " +
+                          event.location?.neighborhood ||
                           "Location details provided upon registration."}
                       </p>
                     </div>

@@ -83,7 +83,7 @@ export default function MapPage() {
     queryKey: ["events"],
     queryFn: async () => {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/V1/events?limit=100`,
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/events?limit=100`,
       );
       if (!response.ok) throw new Error("Network error");
       const result = await response.json();

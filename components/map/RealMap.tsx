@@ -196,7 +196,7 @@ const RealMap = forwardRef<MapRef, RealMapProps>(
           const categoryQuery =
             hotspotCategory !== "all" ? `?category=${hotspotCategory}` : "";
           const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/V1/hotspots${categoryQuery}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/v1/hotspots${categoryQuery}`,
           );
           const result = await res.json();
 

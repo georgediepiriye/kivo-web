@@ -133,7 +133,7 @@ export default function DiscoverPage() {
       try {
         setLoading(true);
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/V1/events?limit=100`,
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/events?limit=100`,
         );
         const result = await response.json();
 
@@ -562,7 +562,7 @@ export default function DiscoverPage() {
                 <EventCard
                   {...e}
                   time={formatEventTime(e.startDate)}
-                  location={e.location?.neighborhood || "PH"}
+                  location={e.location?.neighborhood || "Port Harcourt"}
                   buttonText="View"
                   isOnline={e.isOnline}
                 />
