@@ -31,9 +31,7 @@ export default function SignInPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // CRITICAL: This tells the browser to accept and store the cookie
-          // sent by your Node.js backend
-          // credentials: "include",
+          credentials: "include",
           body: JSON.stringify(formData),
         },
       );
@@ -46,14 +44,7 @@ export default function SignInPage() {
         );
       }
 
-      /**
-       * UPDATED LOGIC:
-       * We no longer manually set localStorage. Your backend (Node/Express)
-       * is now sending a 'res.cookie' which the browser stores automatically.
-       * * If you have existing code that relies on localStorage.getItem('token'),
-       * you can keep the line below, but the Cookie is your real security.
-       */
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       return data;
     };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
@@ -6,12 +7,12 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "@/components/layout/NavBar";
-import { Eye, EyeOff } from "lucide-react"; // Added Eye icons
+import { Eye, EyeOff } from "lucide-react";
 
 export default function SignUpPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // Added toggle state
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -35,6 +36,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     const signupAction = async () => {
+      // Artificial delay for UX
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       const { firstName, lastName, email, password, role } = formData;
@@ -50,6 +52,7 @@ export default function SignUpPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // Required for HttpOnly cookies
           body: JSON.stringify(payload),
         },
       );
@@ -60,7 +63,15 @@ export default function SignUpPage() {
         throw new Error(data.message || "Signup failed");
       }
 
-      localStorage.setItem("token", data.token);
+      // Sync user data to local storage for immediate UI profile display
+      localStorage.setItem(
+        "user",
+        JSON.stringify(data.user || data.data?.user),
+      );
+
+      // Notify other components (Navbar) to re-fetch auth status
+      window.dispatchEvent(new Event("auth-change"));
+
       return data;
     };
 
@@ -70,7 +81,10 @@ export default function SignUpPage() {
         loading: "Creating your Kivo account...",
         success: () => {
           setLoading(false);
-          setTimeout(() => router.push("/map"), 1200);
+          setTimeout(() => {
+            router.push("/map");
+            router.refresh();
+          }, 1200);
           return `Welcome to Kivo, ${formData.firstName}!`;
         },
         error: (err) => {
@@ -111,7 +125,8 @@ export default function SignUpPage() {
             alt="Join Kivo"
             width={450}
             height={450}
-            className="drop-shadow-xl mb-12 mx-auto rounded-[40px]"
+            className="drop-shadow-xl mb-12 mx-auto rounded-[40px] object-cover"
+            priority
           />
           <h1 className="text-4xl font-black tracking-tighter text-gray-900 mb-4 leading-tight">
             Explore the <br />{" "}

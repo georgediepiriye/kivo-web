@@ -23,6 +23,14 @@ import {
   Ticket,
   Globe,
   MapPin,
+  User as UserIcon,
+  Settings,
+  LogOut,
+  PlusCircle,
+  MessageSquare,
+  Compass,
+  Phone,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -66,6 +74,78 @@ export default function MapPage() {
   const [showHotspots, setShowHotspots] = useState(true);
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
+
+  // AUTH STATE LOGIC
+  const [authState, setAuthState] = useState({
+    isLoggedIn: false,
+    isMounted: false,
+    user: null as any,
+  });
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/me`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        },
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setAuthState({
+          isLoggedIn: result.authenticated,
+          isMounted: true,
+          user: result.user,
+        });
+      } else {
+        throw new Error("Unauthorized");
+      }
+    } catch (error) {
+      setAuthState({
+        isLoggedIn: false,
+        isMounted: true,
+        user: null,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("auth-change", checkAuth);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("auth-change", checkAuth);
+    };
+  }, [checkAuth]);
+
+  const handleSignOut = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setAuthState({ isLoggedIn: false, isMounted: true, user: null });
+      setMenuOpen(false);
+      router.push("/auth/signin");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const navLinks = [
+    { href: "/discover", label: "Discover", icon: <Compass size={18} /> },
+    { href: "/create", label: "Add Event", icon: <PlusCircle size={18} /> },
+    { href: "/chat", label: "AI Assistant", icon: <MessageSquare size={18} /> },
+    { href: "/about", label: "About", icon: <Info size={18} /> },
+    { href: "/contact", label: "Contact Us", icon: <Phone size={18} /> },
+  ];
 
   const [showGuide, setShowGuide] = useState(() => {
     if (typeof window !== "undefined") {
@@ -132,7 +212,6 @@ export default function MapPage() {
     const tiers = selected.ticketTiers || [];
     const hasTiers = Array.isArray(tiers) && tiers.length > 0;
 
-    // 1. If it has tiers, calculate based on the range
     if (hasTiers) {
       const prices = tiers
         .map((t: any) => Number(t.price))
@@ -146,18 +225,12 @@ export default function MapPage() {
       return `From ₦${min.toLocaleString()}`;
     }
 
-    // 2. Fallback to startingPrice if tiers are missing
     if (selected.startingPrice > 0) {
       return `₦${selected.startingPrice.toLocaleString()}`;
     }
 
-    // 3. Check explicit free flags
     if (selected.isFree || selected.ticketingType === "none") return "Free";
-
-    // 4. Check for external links (usually paid)
     if (selected.externalTicketLink || selected.joinLink) return "Paid";
-
-    // 5. Default based on privacy
     return selected.isPublic === false ? "Invite Only" : "Free";
   }, [selected]);
 
@@ -230,6 +303,151 @@ export default function MapPage() {
           mask-image: linear-gradient(to right, black 85%, transparent 100%);
         }
       `}</style>
+
+      {/* MOBILE SIDE MENU OVERLAY */}
+      <AnimatePresence>
+        {menuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMenuOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] md:hidden"
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-[300px] bg-white z-[160] md:hidden shadow-2xl flex flex-col"
+            >
+              <div className="p-8 pb-4 flex justify-between items-center">
+                <span className="font-black italic text-xl tracking-tighter text-[#715800]">
+                  KIVO
+                </span>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="p-2 bg-gray-50 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-8 py-4">
+                {/* PROFILE SECTION */}
+                {authState.isLoggedIn && (
+                  <div className="mb-10 p-4 bg-gray-50 rounded-[32px] flex items-center gap-4 border border-gray-100">
+                    <div className="w-12 h-12 rounded-2xl relative overflow-hidden bg-white border border-gray-100">
+                      {authState.user?.image ? (
+                        <Image
+                          src={authState.user.image}
+                          alt="User"
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <UserIcon size={20} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-sm truncate">
+                        {authState.user?.name || "Kivo User"}
+                      </p>
+                      <button
+                        onClick={() => {
+                          router.push("/profile");
+                          setMenuOpen(false);
+                        }}
+                        className="text-[10px] font-black text-[#715800] uppercase tracking-widest"
+                      >
+                        View Profile
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* LINKS */}
+                <div className="space-y-2">
+                  {navLinks.map((item) => (
+                    <button
+                      key={item.href}
+                      onClick={() => {
+                        router.push(item.href);
+                        setMenuOpen(false);
+                      }}
+                      className="flex items-center justify-between w-full p-4 rounded-2xl hover:bg-gray-50 transition-all group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="text-gray-400 group-hover:text-[#715800]">
+                          {item.icon}
+                        </span>
+                        <span className="font-black text-xs uppercase tracking-widest">
+                          {item.label}
+                        </span>
+                      </div>
+                      <ChevronRight size={14} className="text-gray-300" />
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      router.push("/settings");
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center justify-between w-full p-4 rounded-2xl hover:bg-gray-50 transition-all group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Settings
+                        size={18}
+                        className="text-gray-400 group-hover:text-[#715800]"
+                      />
+                      <span className="font-black text-xs uppercase tracking-widest">
+                        Settings
+                      </span>
+                    </div>
+                    <ChevronRight size={14} className="text-gray-300" />
+                  </button>
+                </div>
+              </div>
+
+              {/* AUTH ACTION */}
+              <div className="p-8 border-t border-gray-50">
+                {authState.isLoggedIn ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full py-5 bg-red-50 text-red-500 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all"
+                  >
+                    <LogOut size={18} /> Sign Out
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => {
+                        router.push("/auth/signup");
+                        setMenuOpen(false);
+                      }}
+                      className="w-full py-5 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all"
+                    >
+                      Create Account
+                    </button>
+                    <button
+                      onClick={() => {
+                        router.push("/auth/signin");
+                        setMenuOpen(false);
+                      }}
+                      className="w-full py-5 bg-gray-50 text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest active:scale-95 transition-all"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isLoading && (
@@ -459,7 +677,6 @@ export default function MapPage() {
                       />{" "}
                       {selected.timeStatus}
                     </span>
-                    {/* MEDIUM BADGE */}
                     <span
                       className={`text-[10px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1.5 ${selected.isOnline ? "bg-blue-100 text-blue-600" : "bg-purple-100 text-purple-600"}`}
                     >
@@ -506,7 +723,6 @@ export default function MapPage() {
                   priority
                   className="object-cover rounded-[28px] border border-gray-50"
                 />
-                {/* FLOATING ONLINE BADGE */}
                 {selected.isOnline && (
                   <div className="absolute top-4 left-4 px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
                     <Globe size={10} className="animate-pulse" />

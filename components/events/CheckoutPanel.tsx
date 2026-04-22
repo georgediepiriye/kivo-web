@@ -76,6 +76,7 @@ export default function CheckoutPanel({
         `${process.env.NEXT_PUBLIC_API_URL}/v1/tickets/book`,
         {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventId: event._id,
