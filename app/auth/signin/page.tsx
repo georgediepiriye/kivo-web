@@ -23,13 +23,17 @@ export default function SignInPage() {
     setIsLoading(true);
 
     const loginAction = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      // Small delay for UX feel
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          // CRITICAL: This tells the browser to accept and store the cookie
+          // sent by your Node.js backend
+          // credentials: "include",
           body: JSON.stringify(formData),
         },
       );
@@ -42,7 +46,15 @@ export default function SignInPage() {
         );
       }
 
+      /**
+       * UPDATED LOGIC:
+       * We no longer manually set localStorage. Your backend (Node/Express)
+       * is now sending a 'res.cookie' which the browser stores automatically.
+       * * If you have existing code that relies on localStorage.getItem('token'),
+       * you can keep the line below, but the Cookie is your real security.
+       */
       localStorage.setItem("token", data.token);
+
       return data;
     };
 
@@ -53,9 +65,10 @@ export default function SignInPage() {
         success: () => {
           setIsLoading(false);
           setTimeout(() => {
+            // Redirect to the main Kivo map/experience
             router.push("/map");
             router.refresh();
-          }, 800);
+          }, 500);
           return "Welcome back to Kivo!";
         },
         error: (err) => {
@@ -72,7 +85,6 @@ export default function SignInPage() {
           fontWeight: "bold",
         },
         success: {
-          // Changed primary to green
           iconTheme: { primary: "#22c55e", secondary: "#fff" },
         },
       },
@@ -139,7 +151,13 @@ export default function SignInPage() {
             </p>
           </div>
 
-          <button className="w-full py-4 px-6 border-2 border-gray-100 rounded-2xl flex items-center justify-center gap-4 font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98] mb-8">
+          <button
+            type="button"
+            onClick={() =>
+              (window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/google`)
+            }
+            className="w-full py-4 px-6 border-2 border-gray-100 rounded-2xl flex items-center justify-center gap-4 font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98] mb-8"
+          >
             <img
               src="/images/google_icon.png"
               className="w-5 h-5"
