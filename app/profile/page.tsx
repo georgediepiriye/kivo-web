@@ -32,7 +32,7 @@ export default function ProfilePage() {
           `${process.env.NEXT_PUBLIC_API_URL}/v1/users/profile`,
           {
             method: "GET",
-            credentials: "include", // Essential for HttpOnly cookies
+            credentials: "include",
           },
         );
 
