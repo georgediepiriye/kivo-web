@@ -284,7 +284,7 @@ export default function MapPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-white font-sans text-gray-900 antialiased">
-      <OnboardingFlow />
+      {authState.isMounted && !authState.isLoggedIn && <OnboardingFlow />}
       <AnimatePresence>
         {showGuide && <MapGuide onClose={closeGuide} />}
       </AnimatePresence>

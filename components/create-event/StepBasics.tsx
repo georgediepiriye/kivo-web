@@ -40,7 +40,7 @@ export const StepBasics = ({ formData, updateForm, categories }: any) => {
             placeholder="music, outdoor, networking (separate with commas)"
             value={formData.tags}
             onChange={(e) => updateForm("tags", e.target.value)}
-            className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none text-sm border border-transparent focus:border-[#715800]"
+            className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none text-base sm:text-sm border border-transparent focus:border-[#715800] transition-all"
           />
         </div>
 

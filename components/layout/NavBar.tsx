@@ -106,7 +106,7 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="fixed top-0 w-full z-[100] bg-[#FDFDFB]/90 backdrop-blur-xl border-b border-gray-100">
+    <nav className="fixed top-0 w-full z-[500] bg-[#FDFDFB]/90 backdrop-blur-xl border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex justify-between items-center relative z-[110]">
         {/* LOGO */}
         <Link href="/" className="flex items-center gap-2 cursor-pointer">
@@ -149,7 +149,7 @@ export default function Navbar() {
                     {authState.user?.image ? (
                       <Image
                         src={authState.user.image}
-                        alt="P"
+                        alt="Profile"
                         fill
                         className="object-cover"
                         sizes="40px"
@@ -158,6 +158,15 @@ export default function Navbar() {
                       <UserIcon size={20} className="text-gray-400" />
                     )}
                   </Link>
+
+                  {/* DESKTOP SIGN OUT ICON */}
+                  <button
+                    onClick={handleSignOut}
+                    className="hidden md:flex w-10 h-10 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
+                    title="Sign Out"
+                  >
+                    <LogOut size={18} />
+                  </button>
                 </div>
               ) : (
                 <div className="hidden md:flex items-center gap-2 ml-2">
@@ -228,7 +237,7 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* Links - Compacted sizes for better reachability */}
+              {/* Links */}
               <div className="flex flex-col">
                 {navLinks.map((link, i) => (
                   <motion.div
@@ -278,7 +287,6 @@ export default function Navbar() {
                     </Link>
                   </div>
                 )}
-                {/* Safe area spacer for mobile home bars */}
                 <div className="h-6" />
               </div>
             </div>

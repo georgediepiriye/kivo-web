@@ -15,16 +15,15 @@ import {
   Info,
   Loader2,
   Ticket,
-  AlertTriangle,
   ExternalLink,
-  ShieldCheck,
-  RotateCcw,
-  Tag,
   Globe,
   Monitor,
   ChevronDown,
   ChevronUp,
   Users,
+  UserPlus,
+  Check,
+  MessageSquare,
 } from "lucide-react";
 
 import Navbar from "@/components/layout/NavBar";
@@ -40,6 +39,7 @@ export default function EventDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [showExternalModal, setShowExternalModal] = useState(false);
   const [hasReserved, setHasReserved] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
 
@@ -54,7 +54,6 @@ export default function EventDetailsPage() {
 
         if (result.status === "success") {
           const data = result.data.event;
-          // Normalize online status logic
           data.isOnline = data.medium === "online" || data.isOnline === true;
           setEvent(data);
         }
@@ -79,7 +78,6 @@ export default function EventDetailsPage() {
     return "past";
   }, [event]);
 
-  // PROFESSIONAL PRICE LABEL LOGIC
   const displayPrice = useMemo(() => {
     if (!event) return "";
     if (event.ticketingType === "none" || event.isFree) return "Free";
@@ -98,24 +96,17 @@ export default function EventDetailsPage() {
     return event.externalTicketLink || event.joinLink ? "Paid" : "Invite Only";
   }, [event]);
 
-  // SMART BUTTON TEXT LOGIC
-  // SMART BUTTON TEXT LOGIC
   const getButtonContent = () => {
     if (event.isCancelled) return "Event Cancelled";
     if (hasReserved) return "Spot Reserved";
     if (event.externalTicketLink) return "Get External Tickets";
     if (event.isOnline) return "Join Event Online";
 
-    // NEW LOGIC: Check if any tier actually costs money
     const hasPaidTiers = event.ticketTiers?.some((tier: any) => tier.price > 0);
-
     if (event.isFree || (event.ticketingType === "none" && !hasPaidTiers)) {
       return "Register for Free";
     }
-
-    if (hasPaidTiers) {
-      return "Get Tickets"; // Or "Reserve a Spot"
-    }
+    if (hasPaidTiers) return "Get Tickets";
 
     return "Register for Free";
   };
@@ -124,7 +115,7 @@ export default function EventDetailsPage() {
     if (event.isCancelled) return;
 
     if (event.externalTicketLink) {
-      window.open(event.externalTicketLink, "_blank");
+      setShowExternalModal(true);
       return;
     }
 
@@ -134,6 +125,11 @@ export default function EventDetailsPage() {
     }
 
     setIsCheckoutOpen(true);
+  };
+
+  const confirmExternalRedirect = () => {
+    window.open(event.externalTicketLink, "_blank");
+    setShowExternalModal(false);
   };
 
   const handleOpenMap = () => {
@@ -188,6 +184,52 @@ export default function EventDetailsPage() {
         event={event}
       />
 
+      {/* EXTERNAL REDIRECT MODAL */}
+      <AnimatePresence>
+        {showExternalModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowExternalModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md bg-white rounded-[40px] p-10 text-center shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <ExternalLink size={32} />
+              </div>
+              <h3 className="text-2xl font-black tracking-tight mb-2 uppercase italic">
+                Leaving Kivo
+              </h3>
+              <p className="text-gray-500 text-sm font-medium mb-8 leading-relaxed">
+                You are being redirected to an external site to complete your
+                booking. Kivo does not manage tickets for this specific event.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={confirmExternalRedirect}
+                  className="w-full py-5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
+                >
+                  Continue to Booking
+                </button>
+                <button
+                  onClick={() => setShowExternalModal(false)}
+                  className="w-full py-5 bg-gray-100 text-gray-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Stay on Kivo
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <main className="flex-1 pt-20 pb-32 md:pt-28 md:pb-24">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
@@ -210,7 +252,6 @@ export default function EventDetailsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-8 space-y-12">
-              {/* Main Visual */}
               <div className="relative aspect-[16/9] w-full rounded-[40px] overflow-hidden shadow-2xl border border-gray-100">
                 <Image
                   src={
@@ -220,7 +261,6 @@ export default function EventDetailsPage() {
                   fill
                   className="object-cover"
                   priority
-                  // Optimized sizes for performance
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
                 />
                 <div className="absolute top-6 left-6 flex gap-2">
@@ -235,20 +275,61 @@ export default function EventDetailsPage() {
                     }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full bg-white ${
-                        timeStatus === "ongoing" ? "animate-pulse" : ""
-                      }`}
+                      className={`w-1.5 h-1.5 rounded-full bg-white ${timeStatus === "ongoing" ? "animate-pulse" : ""}`}
                     />
                     {timeStatus}
                   </span>
                 </div>
               </div>
 
-              {/* Header Info */}
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-gray-900 leading-[0.85] uppercase italic">
                   {event.title}
                 </h1>
+
+                {/* ORGANIZER PROFILE SECTION */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-8 bg-gray-50 rounded-[32px] gap-6 border border-gray-100/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-white shadow-sm overflow-hidden relative border border-gray-100">
+                      <Image
+                        src={
+                          event.organizer?.image ||
+                          `https://api.dicebear.com/7.x/avataaars/svg?seed=${event.organizer?.name || "host"}`
+                        }
+                        alt="Organizer"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+                        Organizer
+                      </p>
+                      <p className="text-lg font-black text-gray-900 leading-none">
+                        {event.organizer?.name || "Kivo Host"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setIsFollowing(!isFollowing)}
+                      className={`flex-1 sm:flex-none px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${isFollowing ? "bg-white border-2 border-gray-100 text-green-600" : "bg-[#715800] text-white hover:bg-black"}`}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <Check size={14} /> Following
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={14} /> Follow
+                        </>
+                      )}
+                    </button>
+                    <button className="w-14 h-14 bg-white border-2 border-gray-100 rounded-2xl flex items-center justify-center text-gray-400 hover:text-[#715800] transition-all">
+                      <MessageSquare size={20} />
+                    </button>
+                  </div>
+                </div>
 
                 <div className="flex flex-wrap gap-6 py-8 border-y border-gray-100">
                   <div className="flex items-center gap-4">
@@ -279,18 +360,13 @@ export default function EventDetailsPage() {
                       <p className="font-black text-gray-900">
                         {event.isOnline
                           ? "Virtual / Online"
-                          : event.location?.address +
-                              "," +
-                              " " +
-                              event.location?.neighborhood ||
-                            "Location details upon registration"}
+                          : `${event.location?.address || ""}, ${event.location?.neighborhood || "Location details upon registration"}`}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Description Section */}
               <div className="space-y-4">
                 <h3 className="text-xl font-black tracking-tight text-gray-900 flex items-center gap-2">
                   <Info size={20} className="text-[#715800]" /> Overview
@@ -323,7 +399,6 @@ export default function EventDetailsPage() {
                 )}
               </div>
 
-              {/* Ticket Tiers Section */}
               {event.ticketingType === "internal" &&
                 event.ticketTiers?.length > 0 && (
                   <div className="space-y-6 pt-6">
@@ -374,7 +449,6 @@ export default function EventDetailsPage() {
                 )}
             </div>
 
-            {/* Sidebar Sticky Card */}
             <div className="lg:col-span-4 space-y-6">
               <div className="hidden lg:block sticky top-28 p-8 bg-white rounded-[40px] border border-gray-100 shadow-2xl shadow-black/5 space-y-8">
                 <div className="flex items-center justify-between">
@@ -413,7 +487,6 @@ export default function EventDetailsPage() {
                       </button>
                     )}
                   </div>
-
                   {!event.isOnline ? (
                     <div className="space-y-4">
                       <div className="h-56 rounded-[32px] overflow-hidden bg-gray-100 border border-gray-100">
@@ -423,11 +496,7 @@ export default function EventDetailsPage() {
                         />
                       </div>
                       <p className="text-xs font-bold text-gray-500 leading-relaxed px-2 italic">
-                        {event.location?.address +
-                          "," +
-                          " " +
-                          event.location?.neighborhood ||
-                          "Location details provided upon registration."}
+                        {`${event.location?.address || ""}, ${event.location?.neighborhood || "Location details provided upon registration."}`}
                       </p>
                     </div>
                   ) : (
@@ -451,7 +520,6 @@ export default function EventDetailsPage() {
         </div>
       </main>
 
-      {/* Mobile Floating Action */}
       <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[100]">
         <button
           onClick={handleCTA}

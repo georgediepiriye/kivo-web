@@ -25,7 +25,7 @@ export const MoveTypeSelector = ({
         onClick={() => onSelect("activity")}
       />
       <SelectionCard
-        title="Showcase"
+        title="Event"
         icon={<CalendarDays size={28} />}
         desc="Concerts, summits, or productions."
         onClick={() => onSelect("showcase")}
