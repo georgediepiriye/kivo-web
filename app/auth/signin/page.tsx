@@ -149,12 +149,14 @@ export default function SignInPage() {
             }
             className="w-full py-4 px-6 border-2 border-gray-100 rounded-2xl flex items-center justify-center gap-4 font-bold text-gray-700 hover:bg-gray-50 transition-all active:scale-[0.98] mb-8"
           >
-            <img
+            <Image
               src="/images/google_icon.png"
-              className="w-5 h-5"
               alt="Google"
+              width={20}
+              height={20}
+              className="w-5 h-5"
             />
-            Continue with Google
+            Sign in with Google
           </button>
 
           <div className="relative mb-8 text-center">
