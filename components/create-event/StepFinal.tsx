@@ -106,16 +106,6 @@ export const StepFinal = ({
               </select>
             </div>
           </div>
-
-          <div className="pt-4 border-t border-gray-800">
-            <button
-              type="button"
-              onClick={onPreview}
-              className="w-full py-5 bg-[#715800] hover:bg-[#8b6d00] text-white rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-lg"
-            >
-              Preview Move <Eye size={18} />
-            </button>
-          </div>
         </div>
       </div>
     </div>

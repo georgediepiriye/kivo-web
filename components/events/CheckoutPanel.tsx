@@ -1,16 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  X,
-  Mail,
-  ChevronRight,
-  Timer,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { X, Mail, ChevronRight, Timer, Loader2, UserCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface CheckoutPanelProps {
@@ -24,16 +18,64 @@ export default function CheckoutPanel({
   onClose,
   event,
 }: CheckoutPanelProps) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedTier, setSelectedTier] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900);
 
+  // User Auth State (Mirrors your Navbar logic)
+  const [user, setUser] = useState<any>(null);
+
   // Form State
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+
+  /**
+   * Fetches user data using the same pattern as your Navbar
+   * to enable the "Use my details" quick-fill feature.
+   */
+  const fetchUser = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/auth/me`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        },
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setUser(result.user);
+      }
+    } catch (error) {
+      console.error("Checkout: User fetch failed", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) fetchUser();
+  }, [isOpen, fetchUser]);
+
+  /**
+   * Auto-fills the form using the fetched user data.
+   * Handles name splitting if the backend returns a single name field.
+   */
+  const handleUseMyDetails = () => {
+    if (!user) return;
+
+    // Split combined name string (e.g., "John Doe" -> "John", "Doe")
+    const names = user.name ? user.name.split(" ") : ["", ""];
+    setFirstName(names[0] || "");
+    setLastName(names.slice(1).join(" ") || "");
+    setEmail(user.email || "");
+
+    toast.success("Details filled from your profile");
+  };
 
   useEffect(() => {
     if (event?.ticketTiers?.length > 0 && !selectedTier) {
@@ -42,12 +84,12 @@ export default function CheckoutPanel({
   }, [event, selectedTier]);
 
   useEffect(() => {
-    if (!isOpen || step === 3) return;
+    if (!isOpen) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, step]);
+  }, [isOpen]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -55,7 +97,6 @@ export default function CheckoutPanel({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // VALIDATION LOGIC
   const validateAndProceed = () => {
     if (step === 1) {
       if (!selectedTier) {
@@ -64,17 +105,17 @@ export default function CheckoutPanel({
       }
       setStep(2);
     } else {
+      // Granular validation with specific toasts
+      if (!firstName.trim()) return toast.error("Please enter your first name");
+      if (!lastName.trim()) return toast.error("Please enter your last name");
+      if (!email.trim() || !email.includes("@"))
+        return toast.error("Please enter a valid email");
+
       handleProcessOrder();
     }
   };
 
   const handleProcessOrder = async () => {
-    // Check required fields before submission
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      toast.error("Please fill in all attendee details.");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -98,8 +139,13 @@ export default function CheckoutPanel({
       const result = await response.json();
 
       if (result.status === "success") {
-        toast.success("Spot secured! Redirecting...");
-        window.location.href = result.data.authorization_url;
+        if (result.data.isFree) {
+          toast.success("Spot secured! Check your email.");
+          router.push(`/booking-success?ref=${result.data.reference}`);
+        } else {
+          toast.success("Redirecting to payment...");
+          window.location.href = result.data.authorization_url;
+        }
       } else {
         throw new Error(result.message || "Failed to initialize booking");
       }
@@ -134,9 +180,9 @@ export default function CheckoutPanel({
           />
 
           <motion.div
-            initial={{ x: "100%" }} // Completely off-screen
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: "110%" }} // Pushed slightly further on exit to ensure it's off mobile view
+            exit={{ x: "110%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-[201] shadow-2xl flex flex-col"
           >
@@ -201,7 +247,9 @@ export default function CheckoutPanel({
                                 </p>
                               </div>
                               <p className="font-black">
-                                ₦{tier.price.toLocaleString()}
+                                {tier.price === 0
+                                  ? "FREE"
+                                  : `₦${tier.price.toLocaleString()}`}
                               </p>
                             </div>
                           </button>
@@ -239,26 +287,33 @@ export default function CheckoutPanel({
                     className="space-y-6"
                   >
                     <div className="space-y-4">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Personal Details
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Personal Details
+                        </p>
+                        {user && (
+                          <button
+                            onClick={handleUseMyDetails}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase text-[#715800] hover:underline"
+                          >
+                            <UserCheck size={14} /> Use my details
+                          </button>
+                        )}
+                      </div>
+
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <input
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            // Changed text-sm to text-[16px] to prevent mobile zoom
                             className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white transition-all text-[16px] font-bold outline-none"
                             placeholder="First Name"
-                            required
                           />
                           <input
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
-                            // Changed text-sm to text-[16px] to prevent mobile zoom
                             className="w-full px-5 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white transition-all text-[16px] font-bold outline-none"
                             placeholder="Last Name"
-                            required
                           />
                         </div>
                         <div className="relative">
@@ -270,10 +325,8 @@ export default function CheckoutPanel({
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             type="email"
-                            // Changed text-sm to text-[16px] to prevent mobile zoom
                             className="w-full pl-14 pr-5 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-black focus:bg-white transition-all text-[16px] font-bold outline-none"
                             placeholder="Email Address"
-                            required
                           />
                         </div>
                       </div>
@@ -289,7 +342,7 @@ export default function CheckoutPanel({
                         </p>
                       </div>
                       <p className="font-black text-xl">
-                        ₦{total.toLocaleString()}
+                        {total === 0 ? "FREE" : `₦${total.toLocaleString()}`}
                       </p>
                     </div>
                   </motion.div>
@@ -309,7 +362,9 @@ export default function CheckoutPanel({
                   <>
                     {step === 1
                       ? "Next Step"
-                      : `Pay ₦${total.toLocaleString()}`}
+                      : total === 0
+                        ? "Get Free Ticket"
+                        : `Pay ₦${total.toLocaleString()}`}
                     <ChevronRight size={18} />
                   </>
                 )}

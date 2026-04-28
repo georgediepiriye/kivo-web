@@ -17,6 +17,7 @@ import { StepTicketing } from "@/components/create-event/StepTicketing";
 import { StepFinal } from "@/components/create-event/StepFinal";
 import { PreviewModal } from "@/components/create-event/PreviewModal";
 import { EVENT_CATEGORIES } from "@/lib/categories";
+import CreateEventMap from "@/components/map/CreateEventMap";
 
 // --- AUTH GUARD MODAL COMPONENT ---
 const AuthGuardModal = ({
@@ -75,6 +76,8 @@ export default function CreateEventPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Auth States
@@ -111,7 +114,7 @@ export default function CreateEventPage() {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // 1. Session Check (Matches Profile Page Logic)
+  // 1. Session Check
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -134,20 +137,83 @@ export default function CreateEventPage() {
   }, []);
 
   const updateForm = (field: string, value: any) => {
-    // Prevent negative numbers for interval
     if (field === "recurrenceInterval" && value !== "" && parseInt(value) < 1) {
       value = 1;
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleRetrieve = (res: any) => {
+    const feature = res.features[0];
+    if (feature) {
+      const { coordinates } = feature.geometry;
+      const placeName =
+        feature.properties.full_address || feature.properties.name;
+      const neighborhood = feature.properties.context?.neighborhood?.name || "";
+
+      setFormData((prev) => ({
+        ...prev,
+        location: placeName,
+        locationCoords: { lng: coordinates[0], lat: coordinates[1] },
+        neighborhood: neighborhood,
+      }));
+    }
+  };
+
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&types=address,neighborhood,poi`,
+      );
+      const data = await res.json();
+
+      if (data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        const placeName = feature.place_name;
+        // Look for neighborhood in the context array
+        const neighborhood =
+          feature.context?.find((c: any) => c.id.startsWith("neighborhood"))
+            ?.text || "";
+
+        setFormData((prev) => ({
+          ...prev,
+          location: placeName,
+          neighborhood: neighborhood || prev.neighborhood,
+          locationCoords: { lat, lng },
+        }));
+      }
+    } catch (error) {
+      console.error("Geocoding failed", error);
+      toast.error("Failed to get address details");
+    }
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation)
+      return toast.error("Browser doesn't support location");
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        // Fetch the real address name
+        await reverseGeocode(latitude, longitude);
+        setIsLocating(false);
+        toast.success("Location detected");
+      },
+      () => {
+        setIsLocating(false);
+        toast.error("Unable to find you");
+      },
+      { enableHighAccuracy: true },
+    );
+  };
+
   const nextStep = () => {
-    // TRIGGER AUTH GUARD: Before moving to Logistics
     if (step === 1 && !isLoggedIn) {
       setShowAuthGuard(true);
       return;
     }
-
     if (step === 1 && (!formData.title || !formData.category)) {
       return toast.error("Title and Category are required.");
     }
@@ -160,7 +226,6 @@ export default function CreateEventPage() {
     setSubmitting(true);
 
     try {
-      // Convert Label to Key (e.g., "Music & Concerts" -> "music")
       const categoryKey =
         Object.keys(EVENT_CATEGORIES).find(
           (k) => (EVENT_CATEGORIES as any)[k].label === formData.category,
@@ -205,7 +270,6 @@ export default function CreateEventPage() {
       });
 
       if (!res.ok) throw new Error("Broadcast failed.");
-
       toast.success("Move Broadcasted!");
       router.push("/discover");
     } catch (e: any) {
@@ -256,7 +320,14 @@ export default function CreateEventPage() {
             />
           )}
           {step === 2 && (
-            <StepLogistics formData={formData} updateForm={updateForm} />
+            <StepLogistics
+              formData={formData}
+              updateForm={updateForm}
+              setShowMapPicker={setShowMapPicker}
+              handleRetrieve={handleRetrieve}
+              useCurrentLocation={useCurrentLocation}
+              isLocating={isLocating}
+            />
           )}
           {step === 3 && (
             <StepTicketing formData={formData} updateForm={updateForm} />
@@ -299,6 +370,52 @@ export default function CreateEventPage() {
           </div>
         )}
       </main>
+
+      {/* MAP PICKER INTERFACE */}
+      {/* MAP PICKER INTERFACE */}
+      {showMapPicker && (
+        <div className="fixed inset-0 z-[700] bg-white flex flex-col">
+          {/* Header with Close Button */}
+          <div className="absolute top-6 left-6 right-6 z-[710] flex justify-between items-center pointer-events-none">
+            <div className="bg-white/90 backdrop-blur px-6 py-3 rounded-2xl border border-slate-100 shadow-xl pointer-events-auto">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#715800]">
+                {formData.locationCoords
+                  ? "Location Pinned"
+                  : "Tap Map to Drop Pin"}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowMapPicker(false)}
+              className="p-4 bg-black text-white rounded-full shadow-2xl hover:scale-110 transition pointer-events-auto"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* THE ACTUAL MAP */}
+          <div className="flex-1 w-full h-full">
+            <CreateEventMap
+              selectedCoords={formData.locationCoords}
+              onSelect={(coords) => {
+                // This updates the pin immediately
+                updateForm("locationCoords", coords);
+                // This fetches the real address for the "Venue" field
+                reverseGeocode(coords.lat, coords.lng);
+              }}
+            />
+          </div>
+
+          {/* Bottom Confirmation Button */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[710] w-full max-w-xs px-4">
+            <button
+              onClick={() => setShowMapPicker(false)}
+              className="w-full py-5 bg-[#715800] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl active:scale-95 transition-all"
+            >
+              Confirm Location
+            </button>
+          </div>
+        </div>
+      )}
 
       <PreviewModal
         isOpen={showPreview}
