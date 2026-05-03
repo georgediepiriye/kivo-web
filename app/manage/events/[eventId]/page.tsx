@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -38,8 +39,9 @@ interface Attendee {
   status: "used" | "valid";
 }
 
-interface EventData {
+export interface EventData {
   event: {
+    id: string;
     title: string;
     coOrganizers?: Array<{
       email: string;
@@ -56,11 +58,15 @@ interface EventData {
   };
 }
 
+/**
+ * Main Dashboard Component
+ */
 export default function ManageEventDashboard() {
   const params = useParams();
   const router = useRouter();
   const id = params.eventId;
 
+  // --- State Management ---
   const [data, setData] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingCoOrg, setAddingCoOrg] = useState(false);
@@ -69,10 +75,10 @@ export default function ManageEventDashboard() {
   const [error, setError] = useState("");
   const [coOrgEmail, setCoOrgEmail] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // --- Data Fetching ---
   const fetchDashboardData = useCallback(async () => {
     try {
       const response = await fetch(
@@ -100,11 +106,12 @@ export default function ManageEventDashboard() {
     if (id) fetchDashboardData();
   }, [id, fetchDashboardData]);
 
+  // --- Handlers ---
   const handleAddCoOrg = async () => {
     if (!coOrgEmail) return toast.error("Please enter an email");
 
     setAddingCoOrg(true);
-    await sleep(800); // UI Polish
+    await sleep(800); // UI Polish for "working" state
 
     try {
       const response = await fetch(
@@ -137,8 +144,7 @@ export default function ManageEventDashboard() {
     setConfirmDeleteId(null);
     setRemovingId(partnerId);
 
-    // Perceived Performance: Makes the revoke feel intentional and high-stakes
-    await sleep(1200);
+    await sleep(1000); // intentional delay for high-stakes UX
 
     try {
       const response = await fetch(
@@ -163,10 +169,12 @@ export default function ManageEventDashboard() {
     }
   };
 
+  // Reset page when searching
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  // --- Memoized Search & Pagination ---
   const { currentItems, totalPages } = useMemo(() => {
     if (!data) return { currentItems: [], totalPages: 0 };
 
@@ -186,6 +194,7 @@ export default function ManageEventDashboard() {
     return { currentItems: current, totalPages: total };
   }, [data, searchTerm, currentPage]);
 
+  // --- Conditional Rendering for Loading/Error ---
   if (loading) {
     return (
       <div className="fixed inset-0 z-[200] bg-[#FDFDFD] flex items-center justify-center">
@@ -232,10 +241,10 @@ export default function ManageEventDashboard() {
       {confirmDeleteId && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center px-6">
           <div
-            className="absolute inset-0 bg-white/60 backdrop-blur-md transition-opacity duration-300"
+            className="absolute inset-0 bg-white/60 backdrop-blur-md"
             onClick={() => setConfirmDeleteId(null)}
           />
-          <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200/50 w-full max-w-sm relative z-10 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm relative z-10 animate-in fade-in zoom-in duration-200">
             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6">
               <AlertTriangle className="text-red-500" size={28} />
             </div>
@@ -296,16 +305,20 @@ export default function ManageEventDashboard() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button className="flex-1 md:flex-none px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/manage/events/settings/${event?.id}`); // Targetted Settings Page
+              }}
+              className="flex-1 md:flex-none px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+            >
               <Settings size={14} /> Edit Move
-            </button>
-            <button className="flex-1 md:flex-none px-6 py-4 bg-[#715800] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-[#715800]/20 hover:scale-105 active:scale-95 transition-all">
-              Live Check-In
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Analytics & Guests */}
           <div className="lg:col-span-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
@@ -327,7 +340,7 @@ export default function ManageEventDashboard() {
               />
             </div>
 
-            {/* Guest List Section */}
+            {/* Guest List Container */}
             <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden flex flex-col">
               <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
@@ -390,7 +403,7 @@ export default function ManageEventDashboard() {
                           </td>
                           <td className="px-8 py-5 text-right">
                             <span
-                              className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-full ${t.status === "used" ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-green-50 text-green-600 border-green-100"}`}
+                              className={`text-[9px] font-black uppercase px-3 py-1.5 rounded-full ${t.status === "used" ? "bg-purple-50 text-purple-600" : "bg-green-50 text-green-600"}`}
                             >
                               {t.status === "used"
                                 ? "Checked-In"
@@ -440,6 +453,7 @@ export default function ManageEventDashboard() {
             </div>
           </div>
 
+          {/* Right Column: Access & Growth */}
           <aside className="lg:col-span-4 space-y-6">
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
               <h3 className="text-xs font-black uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
@@ -547,6 +561,9 @@ export default function ManageEventDashboard() {
   );
 }
 
+/**
+ * Sub-component for individual metric cards
+ */
 const MetricCard = ({
   label,
   value,

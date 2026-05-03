@@ -30,6 +30,7 @@ import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
 import Footer from "@/components/layout/Footer";
 import EventMap from "@/components/map/EventMap";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function EventDetailsPage() {
   const params = useParams();
@@ -177,6 +178,7 @@ export default function EventDetailsPage() {
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex flex-col">
+      <Toaster position="top-center" reverseOrder={false} />
       <Navbar />
       <CheckoutPanel
         isOpen={isCheckoutOpen}

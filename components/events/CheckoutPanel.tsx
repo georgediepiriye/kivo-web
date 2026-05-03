@@ -23,9 +23,9 @@ export default function CheckoutPanel({
   const [selectedTier, setSelectedTier] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(900);
+  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes
 
-  // User Auth State (Mirrors your Navbar logic)
+  // User Auth State
   const [user, setUser] = useState<any>(null);
 
   // Form State
@@ -34,8 +34,7 @@ export default function CheckoutPanel({
   const [email, setEmail] = useState("");
 
   /**
-   * Fetches user data using the same pattern as your Navbar
-   * to enable the "Use my details" quick-fill feature.
+   * Fetches user data to enable "Use my details"
    */
   const fetchUser = useCallback(async () => {
     try {
@@ -58,35 +57,53 @@ export default function CheckoutPanel({
   }, []);
 
   useEffect(() => {
-    if (isOpen) fetchUser();
+    if (isOpen) {
+      fetchUser();
+      setTimeLeft(900); // Reset timer whenever panel opens
+    }
   }, [isOpen, fetchUser]);
 
   /**
-   * Auto-fills the form using the fetched user data.
-   * Handles name splitting if the backend returns a single name field.
+   * Auto-fills the form using profile data
    */
   const handleUseMyDetails = () => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Could not find profile details");
+      return;
+    }
 
-    // Split combined name string (e.g., "John Doe" -> "John", "Doe")
     const names = user.name ? user.name.split(" ") : ["", ""];
     setFirstName(names[0] || "");
     setLastName(names.slice(1).join(" ") || "");
     setEmail(user.email || "");
 
-    toast.success("Details filled from your profile");
+    toast.success("Details filled from profile");
   };
 
+  // Set default tier if none selected
   useEffect(() => {
     if (event?.ticketTiers?.length > 0 && !selectedTier) {
       setSelectedTier(event.ticketTiers[0]);
     }
   }, [event, selectedTier]);
 
+  /**
+   * Timer logic with auto-close on expiry
+   */
   useEffect(() => {
     if (!isOpen) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          toast.error("Booking session expired. Please try again.", {
+            id: "checkout-timeout",
+          });
+          resetAndClose();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [isOpen]);
@@ -97,6 +114,9 @@ export default function CheckoutPanel({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  /**
+   * Field validation and Step management
+   */
   const validateAndProceed = () => {
     if (step === 1) {
       if (!selectedTier) {
@@ -105,16 +125,22 @@ export default function CheckoutPanel({
       }
       setStep(2);
     } else {
-      // Granular validation with specific toasts
-      if (!firstName.trim()) return toast.error("Please enter your first name");
-      if (!lastName.trim()) return toast.error("Please enter your last name");
-      if (!email.trim() || !email.includes("@"))
-        return toast.error("Please enter a valid email");
+      // Step 2 Validation
+      if (!firstName.trim()) return toast.error("First name is required");
+      if (!lastName.trim()) return toast.error("Last name is required");
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email.trim() || !emailRegex.test(email)) {
+        return toast.error("Please enter a valid email address");
+      }
 
       handleProcessOrder();
     }
   };
 
+  /**
+   * API call to create order and redirect to payment
+   */
   const handleProcessOrder = async () => {
     setLoading(true);
 
@@ -136,21 +162,29 @@ export default function CheckoutPanel({
         },
       );
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server communication error. Please try again.");
+      }
+
       const result = await response.json();
 
-      if (result.status === "success") {
+      if (response.ok && result.status === "success") {
         if (result.data.isFree) {
           toast.success("Spot secured! Check your email.");
           router.push(`/booking-success?ref=${result.data.reference}`);
         } else {
-          toast.success("Redirecting to payment...");
+          toast.success("Redirecting to Paystack...");
           window.location.href = result.data.authorization_url;
         }
       } else {
-        throw new Error(result.message || "Failed to initialize booking");
+        throw new Error(
+          result.message || "Booking failed. Ticket might be sold out.",
+        );
       }
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong.");
+      toast.error(error.message || "Check your internet connection.");
+    } finally {
       setLoading(false);
     }
   };
@@ -160,6 +194,9 @@ export default function CheckoutPanel({
     setTimeout(() => {
       setStep(1);
       setLoading(false);
+      setFirstName("");
+      setLastName("");
+      setEmail("");
     }, 500);
   };
 
@@ -171,6 +208,7 @@ export default function CheckoutPanel({
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -179,6 +217,7 @@ export default function CheckoutPanel({
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
           />
 
+          {/* Panel */}
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
@@ -198,13 +237,13 @@ export default function CheckoutPanel({
               </div>
               <button
                 onClick={resetAndClose}
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Timer */}
+            {/* Timer Banner */}
             <div className="bg-amber-50 px-6 py-2.5 flex items-center justify-between border-b border-amber-100">
               <span className="text-[10px] font-black text-amber-700 uppercase flex items-center gap-2">
                 <Timer size={14} className="animate-pulse" /> Inventory Reserved
@@ -214,17 +253,18 @@ export default function CheckoutPanel({
               </span>
             </div>
 
+            {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto">
               <div className="p-6 space-y-8">
                 {step === 1 && (
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
                     <div className="space-y-4">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Select Tier
+                        Select Ticket Tier
                       </p>
                       <div className="space-y-3">
                         {event.ticketTiers?.map((tier: any) => (
@@ -243,7 +283,7 @@ export default function CheckoutPanel({
                                   {tier.name}
                                 </p>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase">
-                                  {tier.capacity - (tier.sold || 0)} left
+                                  {tier.capacity - (tier.sold || 0)} available
                                 </p>
                               </div>
                               <p className="font-black">
@@ -264,14 +304,18 @@ export default function CheckoutPanel({
                       <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-[24px] justify-center">
                         <button
                           onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                          className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl"
+                          className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl active:scale-90 transition-transform"
                         >
                           -
                         </button>
-                        <span className="font-black text-2xl">{quantity}</span>
+                        <span className="font-black text-2xl w-8 text-center">
+                          {quantity}
+                        </span>
                         <button
-                          onClick={() => setQuantity(quantity + 1)}
-                          className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl"
+                          onClick={() =>
+                            setQuantity(Math.min(10, quantity + 1))
+                          }
+                          className="w-12 h-12 rounded-xl bg-white shadow-sm font-black text-xl active:scale-90 transition-transform"
                         >
                           +
                         </button>
@@ -282,21 +326,21 @@ export default function CheckoutPanel({
 
                 {step === 2 && (
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     className="space-y-6"
                   >
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Personal Details
+                          Contact Information
                         </p>
                         {user && (
                           <button
                             onClick={handleUseMyDetails}
                             className="flex items-center gap-1.5 text-[10px] font-black uppercase text-[#715800] hover:underline"
                           >
-                            <UserCheck size={14} /> Use my details
+                            <UserCheck size={14} /> Use Profile
                           </button>
                         )}
                       </div>
@@ -332,10 +376,11 @@ export default function CheckoutPanel({
                       </div>
                     </div>
 
+                    {/* Summary Card */}
                     <div className="p-6 rounded-[32px] bg-gray-50 border border-gray-100 flex justify-between items-end">
                       <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase">
-                          Selected
+                          Order Summary
                         </p>
                         <p className="font-black text-sm uppercase">
                           {selectedTier?.name} x {quantity}
@@ -350,6 +395,7 @@ export default function CheckoutPanel({
               </div>
             </div>
 
+            {/* Sticky Footer */}
             <div className="p-6 border-t bg-white">
               <button
                 onClick={validateAndProceed}
@@ -361,9 +407,9 @@ export default function CheckoutPanel({
                 ) : (
                   <>
                     {step === 1
-                      ? "Next Step"
+                      ? "Continue to details"
                       : total === 0
-                        ? "Get Free Ticket"
+                        ? "Confirm Free Booking"
                         : `Pay ₦${total.toLocaleString()}`}
                     <ChevronRight size={18} />
                   </>
@@ -373,9 +419,9 @@ export default function CheckoutPanel({
               {step === 2 && !loading && (
                 <button
                   onClick={() => setStep(1)}
-                  className="w-full mt-4 text-[10px] font-black text-gray-400 uppercase hover:text-black"
+                  className="w-full mt-4 text-[10px] font-black text-gray-400 uppercase hover:text-black transition-colors"
                 >
-                  Go Back
+                  Change Selection
                 </button>
               )}
             </div>

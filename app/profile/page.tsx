@@ -16,8 +16,8 @@ import {
   LayoutGrid,
   ChevronRight,
   ArrowUpRight,
-  Settings,
   Calendar,
+  Camera,
 } from "lucide-react";
 import Navbar from "@/components/layout/NavBar";
 import MobileNav from "@/components/layout/MobileNav";
@@ -57,8 +57,7 @@ export default function ProfilePage() {
         credentials: "include",
       });
       localStorage.clear();
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err) {
       console.error("Logout failed");
     }
@@ -264,7 +263,9 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* HOSTED MOVES */}
+            {/* HOSTED MOVES - UPDATED WITH SCANNER NAVIGATION */}
+
+            {/* HOSTED MOVES - UPDATED WITH DUAL NAVIGATION */}
             <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-sm overflow-hidden">
               <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
@@ -278,25 +279,27 @@ export default function ProfilePage() {
                   <Plus size={16} />
                 </button>
               </div>
-              <div className="px-4 pb-4">
+
+              <div className="px-2 pb-4">
                 {profile?.organizedEvents?.length > 0 ? (
-                  <div className="divide-y divide-slate-50">
+                  <div className="space-y-1">
                     {profile.organizedEvents.map((event: any) => (
                       <div
                         key={event._id}
+                        // NAVIGATION: Clicking the row takes you to the Event Overview Page
                         onClick={() =>
                           router.push(`/manage/events/${event._id}`)
                         }
-                        className="p-4 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 rounded-2xl transition-colors"
+                        className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between group hover:bg-slate-50/50 rounded-[1.8rem] transition-all border border-transparent hover:border-slate-100 cursor-pointer"
                       >
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-50">
+                        <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+                          <div className="relative w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-100 shadow-sm">
                             {event.image ? (
                               <Image
                                 src={event.image}
                                 alt={event.title}
                                 fill
-                                className="object-cover"
+                                className="object-cover group-hover:scale-110 transition-transform duration-500"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -304,39 +307,41 @@ export default function ProfilePage() {
                               </div>
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="font-black text-sm truncate group-hover:text-[#715800] uppercase tracking-tight">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-black text-sm truncate uppercase tracking-tight text-slate-800">
                               {event.title}
                             </h4>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span
-                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${event.status === "published" ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600"}`}
-                              >
-                                {event.status || "Draft"}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-green-50 text-green-600 rounded-md">
+                                {event.status || "Live"}
                               </span>
-                              <span className="text-[10px] text-slate-300">
-                                •
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase">
+                              <span className="text-slate-300">•</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 {event.attendees || 0} Sold
                               </span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+
+                        {/* ACTION GROUP */}
+                        <div className="flex items-center gap-3 mt-4 sm:mt-0 w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0">
                           <button
                             onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/events/${event._id}/edit`);
+                              e.stopPropagation(); // Prevents clicking the row from triggering
+                              router.push(`/manage/scanner/${event._id}`);
                             }}
-                            className="p-2 text-slate-300 hover:text-slate-600 transition-colors"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-[#121212] text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] hover:bg-[#715800] active:scale-95 transition-all shadow-md shadow-black/10"
                           >
-                            <Settings size={16} />
+                            <Camera size={14} className="text-[#f8d472]" />
+                            <span>Scan</span>
                           </button>
-                          <ChevronRight
-                            size={18}
-                            className="text-slate-200 group-hover:text-[#715800] transition-all group-hover:translate-x-1"
-                          />
+
+                          <div className="flex items-center gap-1">
+                            <ChevronRight
+                              size={18}
+                              className="text-slate-200 group-hover:translate-x-1 transition-transform hidden sm:block"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
