@@ -48,8 +48,6 @@ export default function TicketScannerPage() {
   useEffect(() => {
     successAudio.current = new Audio("/sounds/beep-success.mp3");
     errorAudio.current = new Audio("/sounds/beep-error.mp3");
-    successAudio.current.load();
-    errorAudio.current.load();
   }, []);
 
   const playSound = (type: "success" | "error") => {
@@ -61,20 +59,24 @@ export default function TicketScannerPage() {
     }
   };
 
-  // --- SYNC ENGINE ---
+  // --- SYNC ENGINE (MANUAL ONLY) ---
   const performSync = useCallback(
     async (manual = false) => {
       if (!params.eventId || syncStatus === "syncing") return;
       setSyncStatus("syncing");
+
       try {
+        // Get the last updated timestamp from our local DB to fetch only NEW tickets
         const lastTicket = await db.tickets.orderBy("updatedAt").last();
         const since = lastTicket?.updatedAt
           ? new Date(lastTicket.updatedAt).getTime()
           : 0;
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const url = `${baseUrl}/v1/tickets/event/${params.eventId}/sync?since=${since}`;
 
-        const res = await fetch(url, { credentials: "include" });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/v1/tickets/event/${params.eventId}/sync?since=${since}`,
+          { credentials: "include" },
+        );
+
         const result = await res.json();
 
         if (result.status === "success" && result.data.length > 0) {
@@ -90,32 +92,31 @@ export default function TicketScannerPage() {
               updatedAt: t.updatedAt,
             })),
           );
-          if (manual) toast.success(`Synced ${result.data.length} records`);
+          if (manual) toast.success(`Synced ${result.data.length} new guests`);
         } else if (manual) {
-          toast.success("Database up to date");
+          toast.success("Guestlist up to date");
         }
         setSyncStatus("idle");
       } catch (err) {
         setSyncStatus("error");
-        if (manual) toast.error("Sync failed");
+        if (manual) toast.error("Sync failed. Check connection.");
       }
     },
     [params.eventId, syncStatus],
   );
 
+  // Run initial sync once on mount
   useEffect(() => {
     performSync();
-  }, [performSync]);
+  }, []);
 
   // --- CORE VALIDATION LOGIC ---
   const processValidation = useCallback(
     async (code: string) => {
       if (processingRef.current) return;
+
       const cleanCode = code.trim().toUpperCase();
-      if (!cleanCode.startsWith("KIVO-") && !cleanCode.startsWith("REF-")) {
-        if (showManualInput) toast.error("Invalid Code Format");
-        return;
-      }
+      if (!cleanCode.includes("-")) return;
 
       processingRef.current = true;
       setIsProcessing(true);
@@ -128,7 +129,7 @@ export default function TicketScannerPage() {
 
         if (!ticket) {
           playSound("error");
-          setLastResult({ success: false, message: "INVALID TICKET" });
+          setLastResult({ success: false, message: "TICKET NOT FOUND" });
         } else if (ticket.status === "used" || ticket.status === "checked-in") {
           playSound("error");
           setLastResult({
@@ -144,82 +145,68 @@ export default function TicketScannerPage() {
             tier: ticket.tier,
           });
 
+          // 1. Update Local Database (Offline-First)
           await db.tickets.update(ticket.id, { status: "used" });
-          await db.outbox.add({
-            checkInCode: cleanCode,
-            eventId: params.eventId as string,
-            timestamp: Date.now(),
-          });
 
-          const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-          fetch(`${baseUrl}/v1/tickets/check-in/${params.eventId}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ checkInCode: cleanCode }),
-            credentials: "include",
-          })
-            .then(async (res) => {
-              if (res.ok) {
-                const item = await db.outbox
-                  .where("checkInCode")
-                  .equals(cleanCode)
-                  .first();
-                if (item) await db.outbox.delete(item.id!);
-              }
-            })
-            .catch(() => {});
+          // 2. Push to Server (Background)
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/v1/tickets/check-in/${params.eventId}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ checkInCode: cleanCode }),
+              credentials: "include",
+            },
+          ).catch(async () => {
+            // 3. If fetch fails, queue in outbox for background retry
+            await db.outbox.add({
+              checkInCode: cleanCode,
+              eventId: params.eventId as string,
+              timestamp: Date.now(),
+            });
+          });
         }
       } catch (err) {
-        toast.error("Database error.");
+        toast.error("Scanning Error");
       } finally {
         setIsProcessing(false);
         setManualCode("");
+        // Cooldown to prevent accidental double-scanning
         setTimeout(() => {
           processingRef.current = false;
-        }, 2500);
+        }, 2000);
       }
     },
-    [params.eventId, showManualInput],
+    [params.eventId],
   );
 
   // --- CAMERA CONTROL ---
   const startScanner = useCallback(async () => {
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode("reader");
-    }
-
-    if (scannerRef.current.isScanning) return;
-
-    setCameraError(false);
-    const config = {
-      fps: 25,
-      qrbox: { width: 260, height: 260 },
-      aspectRatio: 1.0,
-    };
+    if (showManualInput) return;
 
     try {
+      if (!scannerRef.current) scannerRef.current = new Html5Qrcode("reader");
+      if (scannerRef.current.isScanning) await scannerRef.current.stop();
+
+      const config = {
+        fps: 20,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      };
+
       await scannerRef.current.start(
         { facingMode: "environment" },
         config,
-        processValidation,
+        (decodedText) => processValidation(decodedText),
         () => {},
       );
       setCameraReady(true);
+      setCameraError(false);
     } catch (err) {
-      try {
-        await scannerRef.current.start(
-          { facingMode: "user" },
-          config,
-          processValidation,
-          () => {},
-        );
-        setCameraReady(true);
-      } catch (secondErr) {
-        setCameraError(true);
-        setCameraReady(false);
-      }
+      setCameraError(true);
+      setCameraReady(false);
     }
-  }, [processValidation]);
+  }, [processValidation, showManualInput]);
 
   useEffect(() => {
     startScanner();
@@ -230,9 +217,12 @@ export default function TicketScannerPage() {
     };
   }, [startScanner]);
 
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (manualCode.length > 4) processValidation(manualCode);
+  const toggleInputMode = async () => {
+    if (scannerRef.current?.isScanning) {
+      await scannerRef.current.stop();
+      setCameraReady(false);
+    }
+    setShowManualInput(!showManualInput);
   };
 
   return (
@@ -240,36 +230,34 @@ export default function TicketScannerPage() {
       <div className="min-h-screen bg-[#060606] text-white flex flex-col font-sans overflow-hidden">
         <Toaster position="top-center" />
 
-        <header className="p-5 flex items-center justify-between bg-black/60 border-b border-white/5 z-50 backdrop-blur-md">
+        <header className="p-5 flex items-center justify-between bg-black/80 border-b border-white/5 z-50 backdrop-blur-xl">
           <button
             onClick={() => router.back()}
             className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 active:scale-95 transition-all"
           >
             <ChevronLeft />
           </button>
+
           <div className="text-center">
-            <h1 className="text-xs font-black uppercase tracking-widest text-white/90">
-              Staff Scanner
+            <h1 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+              Kivo Staff Portal
             </h1>
             <button
               onClick={() => performSync(true)}
               disabled={syncStatus === "syncing"}
-              className="flex items-center gap-1.5 mx-auto mt-1 text-[10px] font-bold text-yellow-500/60 uppercase tracking-tighter active:text-yellow-500"
+              className="flex items-center gap-1.5 mx-auto mt-1 text-[10px] font-bold text-yellow-500 uppercase active:opacity-50 disabled:opacity-30"
             >
               <RefreshCw
                 size={10}
                 className={syncStatus === "syncing" ? "animate-spin" : ""}
               />
-              {syncStatus === "syncing" ? "Syncing..." : "Refresh Guestlist"}
+              {syncStatus === "syncing" ? "Updating..." : "Sync Guestlist"}
             </button>
           </div>
+
           <button
-            onClick={() => setShowManualInput(!showManualInput)}
-            className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${
-              showManualInput
-                ? "bg-yellow-500 border-yellow-600 text-black"
-                : "bg-white/5 border-white/10 text-white"
-            }`}
+            onClick={toggleInputMode}
+            className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${showManualInput ? "bg-yellow-500 border-yellow-600 text-black" : "bg-white/5 border-white/10 text-white"}`}
           >
             {showManualInput ? <Camera size={20} /> : <Keyboard size={20} />}
           </button>
@@ -277,29 +265,37 @@ export default function TicketScannerPage() {
 
         <main className="flex-1 flex flex-col items-center justify-center p-8 relative">
           {showManualInput ? (
-            <div className="w-full max-w-[320px] animate-in slide-in-from-bottom-4 duration-300">
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] backdrop-blur-xl">
-                <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-center text-yellow-500">
-                  Manual Entry
+            <div className="w-full max-w-[340px] animate-in slide-in-from-bottom-6 duration-500">
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] backdrop-blur-2xl shadow-2xl">
+                <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-center text-yellow-500">
+                  Manual Check-In
                 </h3>
-                <form onSubmit={handleManualSubmit} className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    processValidation(manualCode);
+                  }}
+                  className="space-y-4"
+                >
                   <input
                     autoFocus
                     type="text"
-                    placeholder="KIVO-XXXXXX"
+                    placeholder="KIVO-XXXX"
                     value={manualCode}
-                    onChange={(e) => setManualCode(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-center font-mono text-xl tracking-widest outline-none focus:border-yellow-500 transition-all uppercase"
+                    onChange={(e) =>
+                      setManualCode(e.target.value.toUpperCase())
+                    }
+                    className="w-full bg-black/60 border-2 border-white/10 p-5 rounded-2xl text-center font-mono text-xl tracking-widest outline-none focus:border-yellow-500 transition-all placeholder:opacity-20"
                   />
                   <button
-                    disabled={isProcessing || manualCode.length < 5}
-                    className="w-full bg-yellow-500 disabled:bg-white/10 disabled:text-white/20 text-black py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                    disabled={isProcessing || manualCode.length < 4}
+                    className="w-full bg-yellow-500 disabled:bg-white/5 disabled:text-white/20 text-black py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-yellow-500/10"
                   >
                     {isProcessing ? (
                       <Loader2 className="animate-spin" size={20} />
                     ) : (
                       <>
-                        Validate <ArrowRight size={18} />
+                        Verify <ArrowRight size={18} />
                       </>
                     )}
                   </button>
@@ -309,98 +305,73 @@ export default function TicketScannerPage() {
           ) : (
             <div className="relative w-full max-w-[320px] aspect-square">
               <div
-                className={`relative w-full h-full rounded-[3.5rem] overflow-hidden border-2 transition-all duration-500 ${
-                  isProcessing
-                    ? "border-yellow-500"
-                    : lastResult?.success
-                      ? "border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]"
-                      : lastResult?.success === false
-                        ? "border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
-                        : "border-white/10"
-                }`}
+                className={`relative w-full h-full rounded-[3.5rem] overflow-hidden border-2 transition-all duration-500 ${isProcessing ? "border-yellow-500" : lastResult?.success ? "border-green-500 shadow-[0_0_50px_rgba(34,197,94,0.15)]" : lastResult?.success === false ? "border-red-500 shadow-[0_0_50px_rgba(239,68,68,0.15)]" : "border-white/10"}`}
               >
                 <div id="reader" className="w-full h-full object-cover" />
-
                 {cameraError && (
                   <div className="absolute inset-0 bg-neutral-900 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                      <AlertCircle className="text-red-500" size={32} />
-                    </div>
-                    <p className="text-xs font-bold uppercase tracking-widest mb-6 opacity-60">
-                      Camera Blocked
+                    <AlertCircle className="text-red-500 mb-4" size={40} />
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-6 opacity-60">
+                      Camera Disabled
                     </p>
                     <button
                       onClick={startScanner}
-                      className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                      className="bg-white text-black px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest"
                     >
-                      Enable Camera
+                      Retry
                     </button>
                   </div>
                 )}
-
                 {cameraReady && !isProcessing && (
                   <div className="absolute inset-0 pointer-events-none">
-                    <div className="w-full h-[2px] bg-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.5)] animate-scanner-line" />
+                    <div className="w-full h-[2px] bg-yellow-500/40 shadow-[0_0_15px_rgba(234,179,8,1)] animate-scanner-line" />
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          <div className="mt-12 w-full max-w-[320px] h-32 flex flex-col items-center justify-center">
+          <div className="mt-12 w-full max-w-[320px] min-h-[140px] flex flex-col items-center justify-center">
             {lastResult ? (
               <div
-                className={`w-full p-6 rounded-[2.5rem] border-2 animate-in fade-in zoom-in duration-300 ${
-                  lastResult.success
-                    ? "bg-green-500/10 border-green-500/20"
-                    : "bg-red-500/10 border-red-500/20"
-                }`}
+                className={`w-full p-8 rounded-[2.5rem] border-2 animate-in zoom-in duration-300 ${lastResult.success ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}
               >
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-3">
                   {lastResult.success ? (
                     <ShieldCheck className="text-green-500" size={20} />
                   ) : (
                     <AlertCircle className="text-red-500" size={20} />
                   )}
                   <span
-                    className={`text-[10px] font-black uppercase tracking-widest ${
-                      lastResult.success ? "text-green-400" : "text-red-400"
-                    }`}
+                    className={`text-[10px] font-black uppercase tracking-widest ${lastResult.success ? "text-green-400" : "text-red-400"}`}
                   >
                     {lastResult.success ? "Access Granted" : "Access Denied"}
                   </span>
                 </div>
-                <h2 className="text-xl font-black uppercase truncate leading-tight">
-                  {lastResult.guestName || "Unregistered"}
+                <h2 className="text-xl font-black uppercase truncate mb-1">
+                  {lastResult.guestName || "Guest"}
                 </h2>
-                <p className="text-xs opacity-60 font-medium uppercase tracking-tight">
+                <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">
                   {lastResult.tier || lastResult.message}
                 </p>
               </div>
             ) : (
-              <div className="flex flex-col items-center opacity-20">
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em]">
-                  {showManualInput ? "Awaiting Code Entry" : "Ready to Scan"}
+              <div className="text-center opacity-10">
+                <p className="text-[10px] font-black uppercase tracking-[0.5em]">
+                  Awaiting Scan
                 </p>
-                <div className="mt-2 w-1 h-1 rounded-full bg-white animate-ping" />
               </div>
             )}
           </div>
         </main>
 
         <footer className="p-8 flex justify-center">
-          <div className="px-5 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-md flex items-center gap-2">
+          <div className="px-6 py-3 bg-white/5 rounded-full border border-white/10 flex items-center gap-3">
             <div
-              className={`w-1.5 h-1.5 rounded-full ${
-                cameraReady || showManualInput ? "bg-green-500" : "bg-red-500"
-              } animate-pulse`}
+              className={`w-2 h-2 rounded-full ${cameraReady || showManualInput ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" : "bg-red-500"} animate-pulse`}
             />
-            <span className="text-[9px] font-bold uppercase text-white/40 tracking-widest">
-              {showManualInput
-                ? "Manual Input Enabled"
-                : cameraReady
-                  ? "Hardware Active"
-                  : "Waiting for Access"}
+            <span className="text-[10px] font-black uppercase text-white/30 tracking-[0.2em]">
+              Hardware: {showManualInput ? "Keyboard" : "Camera Active"}
             </span>
           </div>
         </footer>
@@ -408,23 +379,20 @@ export default function TicketScannerPage() {
         <style jsx global>{`
           @keyframes scanner-line {
             0% {
-              top: 10%;
+              top: 15%;
               opacity: 0;
             }
-            20% {
-              opacity: 1;
-            }
-            80% {
+            50% {
               opacity: 1;
             }
             100% {
-              top: 90%;
+              top: 85%;
               opacity: 0;
             }
           }
           .animate-scanner-line {
             position: absolute;
-            animation: scanner-line 3s ease-in-out infinite;
+            animation: scanner-line 3s linear infinite;
           }
           #reader video {
             object-fit: cover !important;
@@ -436,6 +404,7 @@ export default function TicketScannerPage() {
           }
           #reader {
             border: none !important;
+            background: transparent !important;
           }
         `}</style>
       </div>
