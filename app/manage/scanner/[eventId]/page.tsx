@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -6,7 +7,6 @@ import { Html5Qrcode } from "html5-qrcode";
 import {
   ChevronLeft,
   RefreshCw,
-  Zap,
   ShieldCheck,
   AlertCircle,
   Keyboard,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { db } from "@/lib/db";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function TicketScannerPage() {
   const params = useParams();
@@ -78,7 +79,6 @@ export default function TicketScannerPage() {
 
         if (result.status === "success" && result.data.length > 0) {
           await db.tickets.bulkPut(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             result.data.map((t: any) => ({
               id: t._id,
               checkInCode: t.checkInCode,
@@ -105,7 +105,7 @@ export default function TicketScannerPage() {
 
   useEffect(() => {
     performSync();
-  }, []);
+  }, [performSync]);
 
   // --- CORE VALIDATION LOGIC ---
   const processValidation = useCallback(
@@ -184,10 +184,8 @@ export default function TicketScannerPage() {
 
   // --- CAMERA CONTROL ---
   const startScanner = useCallback(async () => {
-    console.log("Attempting to start camera...");
     if (!scannerRef.current) {
-      const html5QrCode = new Html5Qrcode("reader");
-      scannerRef.current = html5QrCode;
+      scannerRef.current = new Html5Qrcode("reader");
     }
 
     if (scannerRef.current.isScanning) return;
@@ -238,187 +236,209 @@ export default function TicketScannerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#060606] text-white flex flex-col font-sans overflow-hidden">
-      <Toaster position="top-center" />
+    <AuthGuard>
+      <div className="min-h-screen bg-[#060606] text-white flex flex-col font-sans overflow-hidden">
+        <Toaster position="top-center" />
 
-      <header className="p-5 flex items-center justify-between bg-black/60 border-b border-white/5 z-50 backdrop-blur-md">
-        <button
-          onClick={() => router.back()}
-          className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 active:scale-95 transition-all"
-        >
-          <ChevronLeft />
-        </button>
-        <div className="text-center">
-          <h1 className="text-xs font-black uppercase tracking-widest text-white/90">
-            Staff Scanner
-          </h1>
+        <header className="p-5 flex items-center justify-between bg-black/60 border-b border-white/5 z-50 backdrop-blur-md">
           <button
-            onClick={() => performSync(true)}
-            disabled={syncStatus === "syncing"}
-            className="flex items-center gap-1.5 mx-auto mt-1 text-[10px] font-bold text-yellow-500/60 uppercase tracking-tighter active:text-yellow-500"
+            onClick={() => router.back()}
+            className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 active:scale-95 transition-all"
           >
-            <RefreshCw
-              size={10}
-              className={syncStatus === "syncing" ? "animate-spin" : ""}
-            />
-            {syncStatus === "syncing" ? "Syncing..." : "Refresh Guestlist"}
+            <ChevronLeft />
           </button>
-        </div>
-        <button
-          onClick={() => setShowManualInput(!showManualInput)}
-          className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${showManualInput ? "bg-yellow-500 border-yellow-600 text-black" : "bg-white/5 border-white/10 text-white"}`}
-        >
-          {showManualInput ? <Camera size={20} /> : <Keyboard size={20} />}
-        </button>
-      </header>
-
-      <main className="flex-1 flex flex-col items-center justify-center p-8 relative">
-        {showManualInput ? (
-          <div className="w-full max-w-[320px] animate-in slide-in-from-bottom-4 duration-300">
-            <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] backdrop-blur-xl">
-              <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-center text-yellow-500">
-                Manual Entry
-              </h3>
-              <form onSubmit={handleManualSubmit} className="space-y-4">
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="KIVO-XXXXXX"
-                  value={manualCode}
-                  onChange={(e) => setManualCode(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-center font-mono text-xl tracking-widest outline-none focus:border-yellow-500 transition-all uppercase"
-                />
-                <button
-                  disabled={isProcessing || manualCode.length < 5}
-                  className="w-full bg-yellow-500 disabled:bg-white/10 disabled:text-white/20 text-black py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  {isProcessing ? (
-                    <Loader2 className="animate-spin" size={20} />
-                  ) : (
-                    <>
-                      Validate <ArrowRight size={18} />
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          </div>
-        ) : (
-          <div className="relative w-full max-w-[320px] aspect-square">
-            <div
-              className={`relative w-full h-full rounded-[3.5rem] overflow-hidden border-2 transition-all duration-500 ${isProcessing ? "border-yellow-500" : lastResult?.success ? "border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]" : lastResult?.success === false ? "border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]" : "border-white/10"}`}
+          <div className="text-center">
+            <h1 className="text-xs font-black uppercase tracking-widest text-white/90">
+              Staff Scanner
+            </h1>
+            <button
+              onClick={() => performSync(true)}
+              disabled={syncStatus === "syncing"}
+              className="flex items-center gap-1.5 mx-auto mt-1 text-[10px] font-bold text-yellow-500/60 uppercase tracking-tighter active:text-yellow-500"
             >
-              <div id="reader" className="w-full h-full object-cover" />
+              <RefreshCw
+                size={10}
+                className={syncStatus === "syncing" ? "animate-spin" : ""}
+              />
+              {syncStatus === "syncing" ? "Syncing..." : "Refresh Guestlist"}
+            </button>
+          </div>
+          <button
+            onClick={() => setShowManualInput(!showManualInput)}
+            className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${
+              showManualInput
+                ? "bg-yellow-500 border-yellow-600 text-black"
+                : "bg-white/5 border-white/10 text-white"
+            }`}
+          >
+            {showManualInput ? <Camera size={20} /> : <Keyboard size={20} />}
+          </button>
+        </header>
 
-              {cameraError && (
-                <div className="absolute inset-0 bg-neutral-900 flex flex-col items-center justify-center p-8 text-center">
-                  <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                    <AlertCircle className="text-red-500" size={32} />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-widest mb-6 opacity-60">
-                    Camera Blocked
-                  </p>
+        <main className="flex-1 flex flex-col items-center justify-center p-8 relative">
+          {showManualInput ? (
+            <div className="w-full max-w-[320px] animate-in slide-in-from-bottom-4 duration-300">
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] backdrop-blur-xl">
+                <h3 className="text-sm font-black uppercase tracking-widest mb-6 text-center text-yellow-500">
+                  Manual Entry
+                </h3>
+                <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="KIVO-XXXXXX"
+                    value={manualCode}
+                    onChange={(e) => setManualCode(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 p-5 rounded-2xl text-center font-mono text-xl tracking-widest outline-none focus:border-yellow-500 transition-all uppercase"
+                  />
                   <button
-                    onClick={startScanner}
-                    className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                    disabled={isProcessing || manualCode.length < 5}
+                    className="w-full bg-yellow-500 disabled:bg-white/10 disabled:text-white/20 text-black py-5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
-                    Enable Camera
+                    {isProcessing ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      <>
+                        Validate <ArrowRight size={18} />
+                      </>
+                    )}
                   </button>
-                </div>
-              )}
-
-              {cameraReady && !isProcessing && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="w-full h-[2px] bg-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.5)] animate-scanner-line" />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-12 w-full max-w-[320px] h-32 flex flex-col items-center justify-center">
-          {lastResult ? (
-            <div
-              className={`w-full p-6 rounded-[2.5rem] border-2 animate-in fade-in zoom-in duration-300 ${lastResult.success ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                {lastResult.success ? (
-                  <ShieldCheck className="text-green-500" size={20} />
-                ) : (
-                  <AlertCircle className="text-red-500" size={20} />
-                )}
-                <span
-                  className={`text-[10px] font-black uppercase tracking-widest ${lastResult.success ? "text-green-400" : "text-red-400"}`}
-                >
-                  {lastResult.success ? "Access Granted" : "Access Denied"}
-                </span>
+                </form>
               </div>
-              <h2 className="text-xl font-black uppercase truncate leading-tight">
-                {lastResult.guestName || "Unregistered"}
-              </h2>
-              <p className="text-xs opacity-60 font-medium uppercase tracking-tight">
-                {lastResult.tier || lastResult.message}
-              </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center opacity-20">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em]">
-                {showManualInput ? "Awaiting Code Entry" : "Ready to Scan"}
-              </p>
-              <div className="mt-2 w-1 h-1 rounded-full bg-white animate-ping" />
+            <div className="relative w-full max-w-[320px] aspect-square">
+              <div
+                className={`relative w-full h-full rounded-[3.5rem] overflow-hidden border-2 transition-all duration-500 ${
+                  isProcessing
+                    ? "border-yellow-500"
+                    : lastResult?.success
+                      ? "border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]"
+                      : lastResult?.success === false
+                        ? "border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                        : "border-white/10"
+                }`}
+              >
+                <div id="reader" className="w-full h-full object-cover" />
+
+                {cameraError && (
+                  <div className="absolute inset-0 bg-neutral-900 flex flex-col items-center justify-center p-8 text-center">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                      <AlertCircle className="text-red-500" size={32} />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-6 opacity-60">
+                      Camera Blocked
+                    </p>
+                    <button
+                      onClick={startScanner}
+                      className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                    >
+                      Enable Camera
+                    </button>
+                  </div>
+                )}
+
+                {cameraReady && !isProcessing && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="w-full h-[2px] bg-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.5)] animate-scanner-line" />
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </div>
-      </main>
 
-      <footer className="p-8 flex justify-center">
-        <div className="px-5 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-md flex items-center gap-2">
-          <div
-            className={`w-1.5 h-1.5 rounded-full ${cameraReady || showManualInput ? "bg-green-500" : "bg-red-500"} animate-pulse`}
-          />
-          <span className="text-[9px] font-bold uppercase text-white/40 tracking-widest">
-            {showManualInput
-              ? "Manual Input Enabled"
-              : cameraReady
-                ? "Hardware Active"
-                : "Waiting for Access"}
-          </span>
-        </div>
-      </footer>
+          <div className="mt-12 w-full max-w-[320px] h-32 flex flex-col items-center justify-center">
+            {lastResult ? (
+              <div
+                className={`w-full p-6 rounded-[2.5rem] border-2 animate-in fade-in zoom-in duration-300 ${
+                  lastResult.success
+                    ? "bg-green-500/10 border-green-500/20"
+                    : "bg-red-500/10 border-red-500/20"
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  {lastResult.success ? (
+                    <ShieldCheck className="text-green-500" size={20} />
+                  ) : (
+                    <AlertCircle className="text-red-500" size={20} />
+                  )}
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-widest ${
+                      lastResult.success ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {lastResult.success ? "Access Granted" : "Access Denied"}
+                  </span>
+                </div>
+                <h2 className="text-xl font-black uppercase truncate leading-tight">
+                  {lastResult.guestName || "Unregistered"}
+                </h2>
+                <p className="text-xs opacity-60 font-medium uppercase tracking-tight">
+                  {lastResult.tier || lastResult.message}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center opacity-20">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                  {showManualInput ? "Awaiting Code Entry" : "Ready to Scan"}
+                </p>
+                <div className="mt-2 w-1 h-1 rounded-full bg-white animate-ping" />
+              </div>
+            )}
+          </div>
+        </main>
 
-      <style jsx global>{`
-        @keyframes scanner-line {
-          0% {
-            top: 10%;
-            opacity: 0;
+        <footer className="p-8 flex justify-center">
+          <div className="px-5 py-2 bg-white/5 rounded-full border border-white/10 backdrop-blur-md flex items-center gap-2">
+            <div
+              className={`w-1.5 h-1.5 rounded-full ${
+                cameraReady || showManualInput ? "bg-green-500" : "bg-red-500"
+              } animate-pulse`}
+            />
+            <span className="text-[9px] font-bold uppercase text-white/40 tracking-widest">
+              {showManualInput
+                ? "Manual Input Enabled"
+                : cameraReady
+                  ? "Hardware Active"
+                  : "Waiting for Access"}
+            </span>
+          </div>
+        </footer>
+
+        <style jsx global>{`
+          @keyframes scanner-line {
+            0% {
+              top: 10%;
+              opacity: 0;
+            }
+            20% {
+              opacity: 1;
+            }
+            80% {
+              opacity: 1;
+            }
+            100% {
+              top: 90%;
+              opacity: 0;
+            }
           }
-          20% {
-            opacity: 1;
+          .animate-scanner-line {
+            position: absolute;
+            animation: scanner-line 3s ease-in-out infinite;
           }
-          80% {
-            opacity: 1;
+          #reader video {
+            object-fit: cover !important;
+            border-radius: 3rem !important;
           }
-          100% {
-            top: 90%;
-            opacity: 0;
+          #reader__dashboard,
+          #reader__status_span {
+            display: none !important;
           }
-        }
-        .animate-scanner-line {
-          position: absolute;
-          animation: scanner-line 3s ease-in-out infinite;
-        }
-        #reader video {
-          object-fit: cover !important;
-          border-radius: 3rem !important;
-        }
-        #reader__dashboard,
-        #reader__status_span {
-          display: none !important;
-        }
-        #reader {
-          border: none !important;
-        }
-      `}</style>
-    </div>
+          #reader {
+            border: none !important;
+          }
+        `}</style>
+      </div>
+    </AuthGuard>
   );
 }
