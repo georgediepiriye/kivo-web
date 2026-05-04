@@ -372,7 +372,7 @@ export default function CreateEventPage() {
       </main>
 
       {/* MAP PICKER INTERFACE */}
-      {/* MAP PICKER INTERFACE */}
+
       {showMapPicker && (
         <div className="fixed inset-0 z-[700] bg-white flex flex-col">
           {/* Header with Close Button */}

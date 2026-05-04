@@ -6,358 +6,571 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ChevronLeft,
   Save,
-  Trash2,
-  Globe,
-  Lock,
-  Users,
-  Bell,
-  CreditCard,
-  ShieldAlert,
   Loader2,
-  Camera,
   MapPin,
   Calendar,
   Ticket,
-  ChevronRight,
   Info,
+  Navigation,
+  X,
+  Plus,
+  Trash2,
+  AlertCircle,
+  CreditCard,
+  ShieldAlert,
+  Type,
+  AlignLeft,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import toast, { Toaster } from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Components
 import Navbar from "@/components/layout/NavBar";
 import AuthGuard from "@/components/auth/AuthGuard";
+
+// Types
+interface MapProps {
+  selectedCoords: { lat: number; lng: number } | null;
+  onSelect: (coords: { lat: number; lng: number }) => void;
+}
+
+// Dynamic Imports
+const SearchBox = dynamic(
+  () => import("@mapbox/search-js-react").then((m) => m.SearchBox),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-14 w-full bg-slate-50 animate-pulse rounded-2xl" />
+    ),
+  },
+);
+
+const CreateEventMap = dynamic<MapProps>(
+  () => import("@/components/map/CreateEventMap"),
+  { ssr: false },
+);
 
 export default function EventSettingsPage() {
   const params = useParams();
   const router = useRouter();
+
+  // States
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [eventData, setEventData] = useState<any>(null);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
+  const [formData, setFormData] = useState<any>({
+    title: "",
+    description: "",
+    isPublic: true,
+    startDate: "",
+    endDate: "",
+    isRecurring: false,
+    recurrenceFrequency: "weekly",
+    location: "",
+    neighborhood: "",
+    locationCoords: null,
+    status: "active",
+    ticketTiers: [],
+  });
+
+  const hasStarted = formData.startDate
+    ? new Date(formData.startDate) <= new Date()
+    : false;
+
+  // 1. Data Fetching
   useEffect(() => {
-    const fetchEventSettings = async () => {
+    const fetchEvent = async () => {
       try {
-        const response = await fetch(
+        const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/v1/events/${params.eventId}`,
-          { method: "GET", credentials: "include" },
+          {
+            credentials: "include",
+          },
         );
-        const result = await response.json();
-        if (response.ok) {
-          setEventData(result.data);
-        } else {
-          toast.error("Failed to load settings");
+        const result = await res.json();
+        if (res.ok) {
+          const event = result.data.event;
+          setFormData({
+            title: event.title || "",
+            description: event.description || "",
+            isPublic: event.isPublic ?? true,
+            startDate: event.startDate
+              ? new Date(event.startDate).toISOString().slice(0, 16)
+              : "",
+            endDate: event.endDate
+              ? new Date(event.endDate).toISOString().slice(0, 16)
+              : "",
+            isRecurring: event.isRecurring || false,
+            recurrenceFrequency: event.recurrenceFrequency || "weekly",
+            location: event.location?.address || "",
+            neighborhood: event.location?.neighborhood || "",
+            locationCoords: event.location?.coordinates
+              ? {
+                  lng: event.location.coordinates[0],
+                  lat: event.location.coordinates[1],
+                }
+              : null,
+            status: event.status,
+            ticketTiers: event.ticketTiers || [],
+          });
         }
-      } catch (error) {
-        console.error("Settings Load Error:", error);
+      } catch (e) {
+        toast.error("Failed to load Move");
       } finally {
         setLoading(false);
       }
     };
-    fetchEventSettings();
+    fetchEvent();
   }, [params.eventId]);
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    // Simulated API call for UI polish
-    setTimeout(() => {
-      setSaving(false);
-      toast.success("Move settings updated");
-    }, 1200);
+  // 2. Logic Handlers
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) return toast.error("GPS not supported");
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        await reverseGeocode(latitude, longitude);
+        setIsLocating(false);
+        toast.success("Location Updated");
+      },
+      () => {
+        setIsLocating(false);
+        toast.error("Access denied");
+      },
+      { enableHighAccuracy: true },
+    );
   };
 
-  if (loading) {
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&types=address,neighborhood`,
+      );
+      const data = await res.json();
+      if (data.features?.length > 0) {
+        const feature = data.features[0];
+        setFormData((prev: any) => ({
+          ...prev,
+          location: feature.place_name,
+          neighborhood:
+            feature.context?.find((c: any) => c.id.startsWith("neighborhood"))
+              ?.text || "",
+          locationCoords: { lat, lng },
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdate = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        ...formData,
+        startDate: new Date(formData.startDate).toISOString(),
+        endDate: formData.endDate
+          ? new Date(formData.endDate).toISOString()
+          : undefined,
+        location: {
+          address: formData.location,
+          neighborhood: formData.neighborhood,
+          type: "Point",
+          coordinates: formData.locationCoords
+            ? [formData.locationCoords.lng, formData.locationCoords.lat]
+            : undefined,
+        },
+      };
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/v1/events/${params.eventId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!res.ok) throw new Error("Update failed");
+      toast.success("Move Updated Successfully");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading)
     return (
-      <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#715800]" size={32} />
+      <div className="h-screen flex flex-col items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-[#715800] mb-4" size={32} />
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+          Syncing with Kivo...
+        </p>
       </div>
     );
-  }
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans">
-        <Toaster position="top-center" />
+      <div className="min-h-screen bg-[#FDFDFD] text-slate-900 pb-32">
+        <Toaster position="bottom-center" />
         <Navbar />
 
-        <div className="pt-24">
-          {/* Sub-Header */}
-          <div className="max-w-6xl mx-auto px-6 py-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50">
+        {/* HEADER */}
+        <div className="pt-24 sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100">
+          <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => router.back()}
-                className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-[#715800] hover:border-[#715800]/20 transition-all shadow-sm"
+                className="w-12 h-12 flex items-center justify-center bg-white border border-slate-200 rounded-2xl"
               >
                 <ChevronLeft size={20} />
               </button>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                    Move Control Center
-                  </h1>
-                  <span className="w-1 h-1 rounded-full bg-slate-300" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#715800]">
-                    {eventData?.status || "Active"}
-                  </span>
-                </div>
-                <p className="text-xl font-black uppercase tracking-tight truncate max-w-[300px]">
-                  {eventData?.title}
+                <h1 className="text-[10px] font-black uppercase tracking-widest text-[#715800]">
+                  Control Center
+                </h1>
+                <p className="text-xl font-black uppercase tracking-tight">
+                  {formData.title || "Untitled Move"}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button className="flex-1 md:flex-none px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all">
-                Preview Page
-              </button>
-              <button
-                onClick={handleUpdate}
-                disabled={saving}
-                className="flex-1 md:flex-none px-8 py-4 bg-[#715800] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#5a4600] shadow-lg shadow-[#715800]/20 transition-all disabled:opacity-50"
-              >
-                {saving ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Save size={14} />
-                )}
-                {saving ? "Syncing..." : "Save Changes"}
-              </button>
-            </div>
+            <button
+              onClick={handleUpdate}
+              disabled={saving}
+              className="px-10 py-4 bg-[#715800] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2"
+            >
+              {saving ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Save size={14} />
+              )}
+              {saving ? "Updating..." : "Save Changes"}
+            </button>
           </div>
+        </div>
 
-          <main className="max-w-6xl mx-auto px-6 py-12">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              {/* LEFT: MAIN SETTINGS */}
-              <div className="lg:col-span-8 space-y-10">
-                {/* Visibility Section */}
-                <section className="space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 ml-2">
-                    <Globe size={16} className="text-[#715800]" /> Discovery &
-                    Privacy
-                  </h3>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <label className="relative flex items-center justify-between p-6 bg-white rounded-[2rem] border-2 border-[#715800] cursor-pointer shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-                          <Globe size={24} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-tight">
-                            Public Move
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                            Live on the Kivo Map
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        type="radio"
-                        name="privacy"
-                        defaultChecked
-                        className="accent-[#715800] w-5 h-5"
-                      />
-                    </label>
+        <main className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-8 space-y-12">
+            {/* 1. BASIC INFO */}
+            <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200/60 shadow-sm space-y-8">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                <Info size={16} /> Basic Details
+              </h3>
 
-                    <label className="relative flex items-center justify-between p-6 bg-white rounded-[2rem] border border-slate-200 cursor-pointer hover:border-slate-300 transition-all shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                          <Lock size={24} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-tight">
-                            Private
-                          </p>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                            Link-only Access
-                          </p>
-                        </div>
-                      </div>
-                      <input
-                        type="radio"
-                        name="privacy"
-                        className="accent-[#715800] w-5 h-5"
-                      />
-                    </label>
-                  </div>
-                </section>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
+                    <Type size={12} /> Move Title
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    className="w-full p-4 bg-slate-50 border border-transparent focus:border-[#715800]/20 rounded-2xl text-sm font-bold outline-none transition-all"
+                    placeholder="E.g. Port Harcourt Night Run"
+                  />
+                </div>
 
-                {/* TICKET TIERS */}
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between px-2">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                      <Ticket size={16} className="text-[#715800]" /> Admission
-                      Tiers
-                    </h3>
-                    <button className="text-[10px] font-black uppercase text-[#715800] border-b-2 border-[#715800]/10 pb-1">
-                      + Add New Tier
-                    </button>
-                  </div>
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200/60 overflow-hidden shadow-sm">
-                    <div className="divide-y divide-slate-50">
-                      {eventData?.ticketTiers?.map((tier: any, i: number) => (
-                        <div
-                          key={i}
-                          className="p-6 flex items-center justify-between group hover:bg-slate-50/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs">
-                              {i + 1}
-                            </div>
-                            <div>
-                              <p className="text-sm font-black uppercase tracking-tight">
-                                {tier.name}
-                              </p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                                ₦{tier.price.toLocaleString()} • {tier.quantity}{" "}
-                                Slots
-                              </p>
-                            </div>
-                          </div>
-                          <button className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
-                            <ChevronRight size={18} />
-                          </button>
-                        </div>
-                      )) || (
-                        <div className="p-12 text-center">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                            No custom tiers configured
-                          </p>
-                        </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
+                    <AlignLeft size={12} /> Description
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    className="w-full p-4 bg-slate-50 border border-transparent focus:border-[#715800]/20 rounded-2xl text-sm font-bold outline-none transition-all resize-none"
+                    placeholder="Tell them what's happening..."
+                  />
+                </div>
+
+                <div className="pt-4 flex items-center justify-between bg-slate-50 p-6 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`p-3 rounded-xl ${formData.isPublic ? "bg-green-100 text-green-600" : "bg-slate-200 text-slate-600"}`}
+                    >
+                      {formData.isPublic ? (
+                        <Eye size={18} />
+                      ) : (
+                        <EyeOff size={18} />
                       )}
                     </div>
-                  </div>
-                </section>
-
-                {/* CORE LOGISTICS */}
-                <section className="bg-white rounded-[2.5rem] border border-slate-200/60 p-10 shadow-sm space-y-8">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Info size={16} className="text-[#715800]" /> Logistics
-                    Details
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">
-                        Event Venue
-                      </label>
-                      <div className="relative">
-                        <MapPin
-                          className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
-                        <input
-                          type="text"
-                          defaultValue={
-                            eventData?.location?.address || "The Rooftop Lounge"
-                          }
-                          className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:bg-white focus:border-[#715800] outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">
-                        Start Time
-                      </label>
-                      <div className="relative">
-                        <Calendar
-                          className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"
-                          size={16}
-                        />
-                        <input
-                          type="datetime-local"
-                          className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:bg-white focus:border-[#715800] outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-4 border-t border-slate-50">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">
-                      Move Guidelines (Bio)
-                    </label>
-                    <textarea
-                      rows={4}
-                      defaultValue={eventData?.description}
-                      placeholder="Tell the people the vibe..."
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-3xl text-sm font-medium focus:bg-white focus:border-[#715800] outline-none transition-all resize-none"
-                    />
-                  </div>
-                </section>
-              </div>
-
-              {/* RIGHT SIDEBAR */}
-              <aside className="lg:col-span-4 space-y-6">
-                <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-xl shadow-slate-200">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6 flex items-center gap-2">
-                    <CreditCard size={14} /> Revenue Control
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="p-5 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-[9px] font-black uppercase text-slate-500">
-                        Total Sales
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-tight">
+                        Visibility
                       </p>
-                      <p className="text-2xl font-black mt-1">
-                        ₦{((eventData?.attendees || 0) * 5000).toLocaleString()}
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {formData.isPublic
+                          ? "Visible to everyone on Kivo"
+                          : "Private / Invite Only"}
                       </p>
                     </div>
-                    <button className="w-full py-4 bg-[#715800] hover:bg-[#8e6e00] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all">
-                      Request Payout
-                    </button>
                   </div>
-                </div>
-
-                <div className="bg-white rounded-[2.5rem] border border-slate-200/60 p-8 shadow-sm">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
-                    <Users size={16} /> Operations
-                  </h3>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() =>
-                        router.push(`/manage/scanner/${params.eventId}`)
-                      }
-                      className="w-full p-5 flex items-center justify-between bg-slate-50 rounded-2xl hover:bg-[#121212] hover:text-white transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Camera
-                          size={18}
-                          className="text-[#715800] group-hover:text-[#f8d472]"
-                        />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Open Scanner
-                        </span>
-                      </div>
-                      <ChevronRight size={14} />
-                    </button>
-
-                    <button className="w-full p-5 flex items-center justify-between bg-slate-50 rounded-2xl hover:bg-slate-100 transition-all group">
-                      <div className="flex items-center gap-3">
-                        <Bell size={18} className="text-[#715800]" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                          Push Alerts
-                        </span>
-                      </div>
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-red-50/50 rounded-[2.5rem] border border-red-100 p-8">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 mb-4 flex items-center gap-2">
-                    <ShieldAlert size={14} /> Final Actions
-                  </h3>
-                  <p className="text-[10px] text-red-400 font-bold uppercase leading-relaxed mb-6">
-                    Once a move is cancelled, all ticket holders will be
-                    notified and sales will be halted immediately.
-                  </p>
-                  <button className="w-full py-4 bg-white border border-red-200 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all group flex items-center justify-center gap-2">
-                    <Trash2 size={14} className="group-hover:animate-bounce" />
-                    Cancel Move
+                  <button
+                    onClick={() =>
+                      setFormData({ ...formData, isPublic: !formData.isPublic })
+                    }
+                    className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${formData.isPublic ? "border-green-200 text-green-600 bg-white" : "border-slate-200 text-slate-500 bg-white"}`}
+                  >
+                    {formData.isPublic ? "Make Private" : "Make Public"}
                   </button>
                 </div>
-              </aside>
+              </div>
+            </section>
+
+            {/* 2. SCHEDULE */}
+            <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200/60 shadow-sm space-y-8">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                <Calendar size={16} /> Schedule
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                    Start Date/Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    disabled={hasStarted}
+                    value={formData.startDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, startDate: e.target.value })
+                    }
+                    className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl text-sm font-bold disabled:opacity-50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                    End Date/Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.endDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, endDate: e.target.value })
+                    }
+                    className="w-full p-4 bg-slate-50 border border-transparent rounded-2xl text-sm font-bold"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* 3. LOCATION */}
+            <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200/60 shadow-sm space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                  <MapPin size={16} /> Venue
+                </h3>
+                {!hasStarted && (
+                  <button
+                    onClick={useCurrentLocation}
+                    className="text-[10px] font-black text-[#715800] flex items-center gap-1"
+                  >
+                    <Navigation
+                      size={12}
+                      className={isLocating ? "animate-pulse" : ""}
+                    />{" "}
+                    {isLocating ? "Locating..." : "Use GPS"}
+                  </button>
+                )}
+              </div>
+
+              <div
+                className={hasStarted ? "pointer-events-none opacity-50" : ""}
+              >
+                <SearchBox
+                  accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN!}
+                  value={formData.location}
+                  onRetrieve={(res: any) => {
+                    const feature = res.features[0];
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      location: feature.properties.full_address,
+                      neighborhood:
+                        feature.properties.context?.neighborhood?.name || "",
+                      locationCoords: {
+                        lng: feature.geometry.coordinates[0],
+                        lat: feature.geometry.coordinates[1],
+                      },
+                    }));
+                  }}
+                />
+              </div>
+              <button
+                disabled={hasStarted}
+                onClick={() => setShowMapPicker(true)}
+                className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest"
+              >
+                {formData.locationCoords ? "Adjust Pin on Map" : "Drop Map Pin"}
+              </button>
+            </section>
+
+            {/* 4. TICKETS */}
+            <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200/60 shadow-sm space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                  <Ticket size={16} /> Tickets
+                </h3>
+                <button
+                  onClick={() =>
+                    setFormData({
+                      ...formData,
+                      ticketTiers: [
+                        ...formData.ticketTiers,
+                        { name: "New Tier", price: 0, capacity: 50 },
+                      ],
+                    })
+                  }
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2"
+                >
+                  <Plus size={12} /> Add Tier
+                </button>
+              </div>
+              <div className="space-y-4">
+                {formData.ticketTiers.map((tier: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-6 bg-slate-50 rounded-[2rem] grid grid-cols-1 md:grid-cols-3 gap-6 relative border border-slate-100 group"
+                  >
+                    <input
+                      value={tier.name}
+                      onChange={(e) => {
+                        const updated = [...formData.ticketTiers];
+                        updated[idx].name = e.target.value;
+                        setFormData({ ...formData, ticketTiers: updated });
+                      }}
+                      className="bg-transparent font-bold text-sm outline-none"
+                      placeholder="Tier Name"
+                    />
+
+                    <input
+                      type="number"
+                      value={tier.price}
+                      onChange={(e) => {
+                        const updated = [...formData.ticketTiers];
+                        updated[idx].price = Number(e.target.value);
+                        setFormData({ ...formData, ticketTiers: updated });
+                      }}
+                      className="bg-transparent font-bold text-sm outline-none"
+                      placeholder="Price"
+                    />
+
+                    <input
+                      type="number"
+                      value={tier.capacity}
+                      onChange={(e) => {
+                        const updated = [...formData.ticketTiers];
+                        updated[idx].capacity = Number(e.target.value);
+                        setFormData({ ...formData, ticketTiers: updated });
+                      }}
+                      className="bg-transparent font-bold text-sm outline-none"
+                      placeholder="Capacity"
+                    />
+
+                    <button
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          ticketTiers: formData.ticketTiers.filter(
+                            (_: any, i: number) => i !== idx,
+                          ),
+                        })
+                      }
+                      className="absolute -top-2 -right-2 bg-white p-2 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* SIDEBAR */}
+          <aside className="lg:col-span-4 space-y-6">
+            <div className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <CreditCard size={14} /> Stats
+              </h3>
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10">
+                <p className="text-[10px] font-black uppercase text-slate-400">
+                  Tickets Sold
+                </p>
+                <p className="text-4xl font-black mt-1">
+                  {formData.ticketTiers?.reduce(
+                    (acc: any, t: any) => acc + (t.sold || 0),
+                    0,
+                  )}
+                </p>
+              </div>
+              <button className="w-full py-5 bg-[#715800] rounded-2xl font-black text-[10px] uppercase tracking-widest">
+                Request Payout
+              </button>
             </div>
-          </main>
-        </div>
+
+            <div className="bg-red-50/50 rounded-[2.5rem] border border-red-100 p-8">
+              <h3 className="text-[10px] font-black uppercase text-red-500 mb-4 flex items-center gap-2">
+                <ShieldAlert size={14} /> Danger Zone
+              </h3>
+              <button className="w-full py-4 bg-white border border-red-200 text-red-500 rounded-2xl font-black text-[10px] uppercase hover:bg-red-500 hover:text-white transition-all">
+                Cancel Move
+              </button>
+            </div>
+          </aside>
+        </main>
       </div>
+
+      {/* MAP MODAL */}
+      <AnimatePresence>
+        {showMapPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-white flex flex-col"
+          >
+            <div className="absolute top-6 right-6 z-[110]">
+              <button
+                onClick={() => setShowMapPicker(false)}
+                className="p-4 bg-black text-white rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1">
+              <CreateEventMap
+                selectedCoords={formData.locationCoords}
+                onSelect={(coords) => {
+                  setFormData((prev: any) => ({
+                    ...prev,
+                    locationCoords: coords,
+                  }));
+                  reverseGeocode(coords.lat, coords.lng);
+                }}
+              />
+            </div>
+            <div className="p-10 bg-white border-t border-slate-100 flex justify-center">
+              <button
+                onClick={() => setShowMapPicker(false)}
+                className="px-12 py-5 bg-[#715800] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl"
+              >
+                Confirm Pin
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AuthGuard>
   );
 }
