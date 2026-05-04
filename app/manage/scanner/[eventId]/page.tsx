@@ -41,22 +41,30 @@ export default function TicketScannerPage() {
   // --- REFS ---
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const processingRef = useRef(false);
-  const successAudio = useRef<HTMLAudioElement | null>(null);
-  const errorAudio = useRef<HTMLAudioElement | null>(null);
-
-  // --- AUDIO INITIALIZATION ---
-  useEffect(() => {
-    successAudio.current = new Audio("/sounds/beep-success.mp3");
-    errorAudio.current = new Audio("/sounds/beep-error.mp3");
-  }, []);
 
   const playSound = (type: "success" | "error") => {
-    const audio =
-      type === "success" ? successAudio.current : errorAudio.current;
-    if (audio) {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
-    }
+    if (typeof window === "undefined") return;
+    const ctx = new (
+      window.AudioContext || (window as any).webkitAudioContext
+    )();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    // High pitch for success, low for error
+    osc.frequency.setValueAtTime(
+      type === "success" ? 880 : 220,
+      ctx.currentTime,
+    );
+
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
   };
 
   // --- SYNC ENGINE (MANUAL ONLY) ---

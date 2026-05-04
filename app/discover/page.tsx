@@ -149,6 +149,8 @@ export default function DiscoverPage() {
             organizerImage:
               e.organizer?.image ||
               `https://api.dicebear.com/7.x/avataaars/svg?seed=${e._id}`,
+            participantImages: e.participantImages || [],
+            attendees: e.attendees || 0,
           }));
           setEvents(formatted);
         }
@@ -493,6 +495,8 @@ export default function DiscoverPage() {
                         time={formatEventTime(e.startDate)}
                         buttonText={displayPrice}
                         isOnline={e.isOnline}
+                        participantImages={e.participantImages}
+                        attendeeCount={e.attendees}
                       />
                     </motion.div>
                   );

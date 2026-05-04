@@ -44,6 +44,7 @@ export interface EventData {
   event: {
     id: string;
     title: string;
+    organizer: string; // The ID of the event creator
     coOrganizers?: Array<{
       email: string;
       _id: string;
@@ -79,6 +80,22 @@ export default function ManageEventDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // NEW: State for current logged-in user ID
+  const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
+
+  // --- Initialize User ID from LocalStorage ---
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setLoggedInUserId(user._id || user.id); // Check both common patterns
+      } catch (e) {
+        console.error("Error parsing user from localStorage");
+      }
+    }
+  }, []);
+
   // --- Data Fetching ---
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -107,12 +124,19 @@ export default function ManageEventDashboard() {
     if (id) fetchDashboardData();
   }, [id, fetchDashboardData]);
 
+  // --- Permission Check ---
+  // Compares the creator ID from the event with the ID from localStorage
+  const isOrganizer = useMemo(() => {
+    if (!data || !loggedInUserId) return false;
+    return data.event.organizer === loggedInUserId;
+  }, [data, loggedInUserId]);
+
   // --- Handlers ---
   const handleAddCoOrg = async () => {
     if (!coOrgEmail) return toast.error("Please enter an email");
 
     setAddingCoOrg(true);
-    await sleep(800); // UI Polish for "working" state
+    await sleep(800);
 
     try {
       const response = await fetch(
@@ -145,7 +169,7 @@ export default function ManageEventDashboard() {
     setConfirmDeleteId(null);
     setRemovingId(partnerId);
 
-    await sleep(1000); // intentional delay for high-stakes UX
+    await sleep(1000);
 
     try {
       const response = await fetch(
@@ -170,12 +194,10 @@ export default function ManageEventDashboard() {
     }
   };
 
-  // Reset page when searching
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // --- Memoized Search & Pagination ---
   const { currentItems, totalPages } = useMemo(() => {
     if (!data) return { currentItems: [], totalPages: 0 };
 
@@ -195,7 +217,6 @@ export default function ManageEventDashboard() {
     return { currentItems: current, totalPages: total };
   }, [data, searchTerm, currentPage]);
 
-  // --- Conditional Rendering for Loading/Error ---
   if (loading) {
     return (
       <div className="fixed inset-0 z-[200] bg-[#FDFDFD] flex items-center justify-center">
@@ -239,7 +260,6 @@ export default function ManageEventDashboard() {
       <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans relative">
         <Toaster position="top-right" reverseOrder={false} />
 
-        {/* Access Revoke Modal */}
         {confirmDeleteId && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center px-6">
             <div
@@ -298,7 +318,7 @@ export default function ManageEventDashboard() {
               </h1>
               <div className="flex items-center gap-3 mt-4">
                 <span className="px-3 py-1 bg-[#715800]/10 text-[#715800] rounded-full text-[10px] font-black uppercase tracking-widest">
-                  Admin Mode
+                  {isOrganizer ? "Main Organizer" : "Partner Access"}
                 </span>
                 <span className="text-slate-300">•</span>
                 <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
@@ -306,17 +326,21 @@ export default function ManageEventDashboard() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(`/manage/events/settings/${event?.id}`);
-                }}
-                className="flex-1 md:flex-none px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-              >
-                <Settings size={14} /> Edit Move
-              </button>
-            </div>
+
+            {/* Edit Button: Hidden if user is a Co-Organizer */}
+            {isOrganizer && (
+              <div className="flex gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/manage/events/settings/${event?.id}`);
+                  }}
+                  className="flex-1 md:flex-none px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                >
+                  <Settings size={14} /> Edit Move
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -327,7 +351,7 @@ export default function ManageEventDashboard() {
                   label="Total Revenue"
                   value={`₦${metrics.totalRevenue.toLocaleString()}`}
                   icon={<Wallet className="text-[#715800]" size={18} />}
-                  trend="+12% from yesterday"
+                  trend="Kivo Balance"
                 />
                 <MetricCard
                   label="Tickets Sold"
@@ -338,7 +362,7 @@ export default function ManageEventDashboard() {
                   label="Check-In Rate"
                   value={`${Math.round((metrics.checkInCount / (metrics.totalTicketsSold || 1)) * 100)}%`}
                   icon={<Users className="text-purple-500" size={18} />}
-                  trend={`${metrics.checkInCount} / ${metrics.totalTicketsSold}`}
+                  trend={`${metrics.checkInCount} scanned`}
                 />
               </div>
 
@@ -362,9 +386,6 @@ export default function ManageEventDashboard() {
                         className="pl-10 pr-4 py-3 bg-slate-50 border border-transparent focus:border-[#715800]/20 focus:bg-white rounded-xl text-xs font-bold transition-all outline-none w-full md:w-64"
                       />
                     </div>
-                    <button className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-[#715800] transition-colors">
-                      <Download size={16} />
-                    </button>
                   </div>
                 </div>
 
@@ -492,20 +513,24 @@ export default function ManageEventDashboard() {
                             </span>
                           </div>
                         </div>
-                        <button
-                          disabled={!!removingId}
-                          onClick={() => setConfirmDeleteId(co._id)}
-                          className="text-slate-300 hover:text-red-500 transition-colors p-1 disabled:opacity-50"
-                        >
-                          {removingId === co._id ? (
-                            <Loader2
-                              size={14}
-                              className="animate-spin text-red-500"
-                            />
-                          ) : (
-                            <X size={14} />
-                          )}
-                        </button>
+
+                        {/* Remove Action: Only visible if user IS the Organizer */}
+                        {isOrganizer && (
+                          <button
+                            disabled={!!removingId}
+                            onClick={() => setConfirmDeleteId(co._id)}
+                            className="text-slate-300 hover:text-red-500 transition-colors p-1 disabled:opacity-50"
+                          >
+                            {removingId === co._id ? (
+                              <Loader2
+                                size={14}
+                                className="animate-spin text-red-500"
+                              />
+                            ) : (
+                              <X size={14} />
+                            )}
+                          </button>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -517,31 +542,34 @@ export default function ManageEventDashboard() {
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                    Add Co-Organizer
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      className="flex-1 bg-slate-50 p-4 rounded-xl text-xs font-bold outline-none border border-transparent focus:border-[#715800]/20 transition-all"
-                      placeholder="Enter email address"
-                      value={coOrgEmail}
-                      onChange={(e) => setCoOrgEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddCoOrg()}
-                    />
-                    <button
-                      disabled={addingCoOrg}
-                      onClick={handleAddCoOrg}
-                      className="bg-slate-900 text-white p-4 rounded-xl hover:bg-[#715800] transition-colors active:scale-95 disabled:opacity-50"
-                    >
-                      {addingCoOrg ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <Plus size={18} />
-                      )}
-                    </button>
+                {/* Add Action: Only visible if user IS the Organizer */}
+                {isOrganizer && (
+                  <div className="space-y-4">
+                    <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
+                      Add Co-Organizer
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 bg-slate-50 p-4 rounded-xl text-xs font-bold outline-none border border-transparent focus:border-[#715800]/20 transition-all"
+                        placeholder="Enter email address"
+                        value={coOrgEmail}
+                        onChange={(e) => setCoOrgEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddCoOrg()}
+                      />
+                      <button
+                        disabled={addingCoOrg}
+                        onClick={handleAddCoOrg}
+                        className="bg-slate-900 text-white p-4 rounded-xl hover:bg-[#715800] transition-colors active:scale-95 disabled:opacity-50"
+                      >
+                        {addingCoOrg ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <Plus size={18} />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="bg-[#121212] p-8 rounded-[2.5rem] text-white relative overflow-hidden">

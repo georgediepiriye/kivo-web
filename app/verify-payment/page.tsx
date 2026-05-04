@@ -63,37 +63,38 @@ function VerifyPaymentContent() {
         );
         const result = await res.json();
 
-        if (
-          result.status === "success" &&
-          result.data.order?.status === "completed"
-        ) {
+        if (result.status === "success") {
+          const { order, tickets } = result.data;
+
           setTicketData({
-            eventTitle: result.data.order.event.title,
-            tierName: result.data.order.tierName,
-            quantity: result.data.order.quantity,
-            ticketCode:
-              result.data.tickets?.[0]?.ticketCode || "KIVO-PROCESSING",
+            eventTitle: order.event.title,
+            tierName: order.tierName,
+            quantity: order.quantity,
+            ticketCode: tickets?.[0]?.checkInCode || "KIVO-PASS",
           });
 
           setStatus("success");
           triggerCelebration();
-        } else if (attempts < 10) {
+          // We don't reset isVerifying here because we are done.
+        } else if (result.status === "pending" && attempts < 15) {
+          // IMPORTANT: Allow the next attempt to run
+          isVerifying.current = false;
           setTimeout(() => {
-            isVerifying.current = false;
             setAttempts((prev) => prev + 1);
-          }, 2000);
+          }, 3000);
         } else {
           setStatus("error");
+          isVerifying.current = false;
         }
       } catch (error) {
         console.error("Kivo verification error:", error);
-        if (attempts >= 10) {
+        isVerifying.current = false; // IMPORTANT: Reset on network error
+        if (attempts >= 15) {
           setStatus("error");
         } else {
           setTimeout(() => {
-            isVerifying.current = false;
             setAttempts((prev) => prev + 1);
-          }, 2000);
+          }, 3000);
         }
       }
     },
@@ -122,8 +123,12 @@ function VerifyPaymentContent() {
         <h2 className="mt-8 text-2xl font-black uppercase italic tracking-tighter text-center">
           Securing your spot...
         </h2>
+
+        {/* UPDATE THIS PARAGRAPH BELOW */}
         <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-center">
-          Verifying move with Kivo servers
+          {attempts > 5
+            ? "Still waiting for bank confirmation..."
+            : "Verifying move with Kivo servers"}
         </p>
       </div>
     );

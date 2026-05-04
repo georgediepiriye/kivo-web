@@ -15,7 +15,7 @@ export type Props = {
   attendees?: number;
   participantImages?: string[];
   timeStatus?: "upcoming" | "ongoing" | "past";
-  isOnline?: boolean; // New Prop
+  isOnline?: boolean;
   className?: string;
 };
 
@@ -36,6 +36,15 @@ export default function EventCard({
 }: Props) {
   const categoryData = EVENT_CATEGORIES[category] ?? EVENT_CATEGORIES.social;
 
+  // Logic: If we have real images, use them.
+  // If attendees exist but no images, show generic avatars (seed with title for consistency).
+  const displayImages =
+    participantImages.length > 0
+      ? participantImages
+      : attendees > 0
+        ? [1, 2, 3]
+        : [];
+
   return (
     <div
       className={`group flex flex-col h-full rounded-[40px] overflow-hidden bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:shadow-[0_20px_50px_rgba(113,88,0,0.08)] transition-all duration-500 ${className}`}
@@ -51,7 +60,6 @@ export default function EventCard({
         />
 
         <div className="absolute top-5 left-5 flex flex-col gap-2 z-20">
-          {/* ONLINE BADGE */}
           {isOnline && (
             <div className="px-3 py-1.5 bg-blue-600 backdrop-blur-md rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 text-white shadow-xl border border-white/20">
               <Globe size={10} className="animate-pulse" />
@@ -110,13 +118,12 @@ export default function EventCard({
 
         <div className="flex items-center justify-between pt-6 border-t border-gray-50 mt-auto">
           <div className="flex items-center">
-            <div className="flex -space-x-2.5 mr-3">
-              {(participantImages.length > 0 ? participantImages : [1, 2, 3])
-                .slice(0, 3)
-                .map((img: any, i) => (
+            {displayImages.length > 0 ? (
+              <div className="flex -space-x-2.5 mr-3">
+                {displayImages.slice(0, 3).map((img, i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 relative rounded-full border-2 border-white overflow-hidden bg-gray-100"
+                    className="w-8 h-8 relative rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm"
                   >
                     <Image
                       src={
@@ -124,16 +131,25 @@ export default function EventCard({
                           ? img
                           : `https://api.dicebear.com/7.x/avataaars/svg?seed=${title}${i}`
                       }
-                      alt="user"
+                      alt="attendee"
                       fill
                       className="object-cover"
                     />
                   </div>
                 ))}
-            </div>
+              </div>
+            ) : (
+              // Empty State UI if no one is going yet
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-200 mr-3 flex items-center justify-center">
+                <div className="w-1 h-1 rounded-full bg-gray-200" />
+              </div>
+            )}
+
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-gray-900 uppercase leading-none">
-                {attendees || "0"}
+                {attendees > 999
+                  ? `${(attendees / 1000).toFixed(1)}k`
+                  : attendees}
               </span>
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                 Going
